@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '1.4', date: '2026/11/05' };
+window.APP_VERSION = { no: '1.5', date: '2026/11/05' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -374,8 +374,8 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
 .update-box{display:flex;flex-direction:column;align-items:center;gap:8px}
 .update-box .msg{margin:0;text-align:center}
 .app-version{margin:0;text-align:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-/* iPhone: Liquid Glass style tab bar (a floating glass capsule) */
-@media (max-width:699px){
+/* phones and one-column tablets: Liquid Glass style tab bar (a floating glass capsule) */
+@media (max-width:1099px){
   .tabbar{left:max(14px, env(safe-area-inset-left, 0px));right:max(14px, env(safe-area-inset-right, 0px));
     bottom:max(10px, calc(env(safe-area-inset-bottom, 0px) - 10px));
     padding:6px;border-radius:32px;border:1px solid var(--glass-edge);border-top-width:1px;
@@ -391,7 +391,23 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
   .tabbar button:active{transform:scale(1.08);background:var(--glass-pick)}
   body{padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px)) !important}
 }
-@media (max-width:699px) and (prefers-reduced-motion: reduce){.tabbar button{transition:none}.tabbar button:active{transform:none}}
+@media (max-width:1099px) and (prefers-reduced-motion: reduce){.tabbar button{transition:none}.tabbar button:active{transform:none}}
+/* tablet portrait: a shorter capsule in the middle */
+@media (min-width:700px) and (max-width:1099px){
+  .tabbar{left:0;right:0;margin-inline:auto;width:min(480px, calc(100% - 28px))}
+}
+/* iPad landscape / PC: tabs stay at the top of the right side, with the same glass finish */
+@media (min-width:1100px){
+  .wrap > .tabbar{border-radius:20px;border:1px solid var(--glass-edge);
+    background:linear-gradient(180deg, var(--glass-tint), color-mix(in srgb, var(--glass-tint) 70%, transparent)), var(--surface);
+    box-shadow:0 8px 24px -12px var(--glass-shadow),inset 0 1px 0 var(--glass-hi),inset 0 -1px 1px color-mix(in srgb,var(--glass-hi) 35%,transparent);
+    position:relative;overflow:hidden;isolation:isolate}
+  .wrap > .tabbar::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;
+    background:radial-gradient(120% 120% at 15% -40%, color-mix(in srgb,var(--glass-hi) 45%,transparent), transparent 60%)}
+  .wrap > .tabbar button{border-radius:16px;transition:transform .18s cubic-bezier(.3,1.6,.5,1),background-color .2s}
+  .wrap > .tabbar button[aria-current="page"]{background:var(--glass-pick);box-shadow:inset 0 1px 0 color-mix(in srgb,var(--glass-hi) 70%,transparent),inset 0 0 0 1px color-mix(in srgb,var(--glass-hi) 30%,transparent)}
+  .wrap > .tabbar button:active{transform:scale(1.04)}
+}
 .timer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted);font-weight:700}
 .timer b{font-family:var(--font-display);font-size:20px;color:var(--ink);font-variant-numeric:tabular-nums}
 .timer b.off{color:var(--muted);font-size:14px}
