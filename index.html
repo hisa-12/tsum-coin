@@ -1623,11 +1623,28 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
       } catch(e){ setStatus('同期できません（電波を確認）', false, true); }
       ready = true;
       window.__syncing = true;
-      unsub.push(col.onSnapshot(snap => {
+      // includeMetadataChanges: also hear when the server confirms (cache -> online), not only when records change
+      let first = true;
+      const showState = snap => {
+        const m = snap.metadata;
+        if (!navigator.onLine) setStatus('オフライン（つながったら送ります）');
+        else if (m.hasPendingWrites) setStatus('送信中…', true);
+        else if (m.fromCache) setStatus('接続中…');
+        else setStatus('同期済み', true);
+        statusEl.title = user.email;
+      };
+      let lastSnap = null;
+      const onNet = () => { if (lastSnap) showState(lastSnap); };
+      window.addEventListener('online', onNet); window.addEventListener('offline', onNet);
+      unsub.push(() => { window.removeEventListener('online', onNet); window.removeEventListener('offline', onNet); });
+      unsub.push(col.onSnapshot({includeMetadataChanges: true}, snap => {
+        lastSnap = snap;
+        showState(snap);
+        if (!first && !snap.docChanges().length) return;   // only the sync state changed
+        first = false;
         plays = snap.docs.map(d => d.data()).filter(x => x && typeof x.id === 'string' && x.play > 0 && x.result > 0);
         synced = new Map(plays.map(x => [x.id, JSON.stringify(x)]));
         try { localStorage.setItem(LS, JSON.stringify(plays)); } catch(_) {}
-        setStatus(snap.metadata.fromCache ? 'オフライン（つながったら送ります）' : '同期中', !snap.metadata.fromCache); statusEl.title = user.email;
         render();
       }, () => setStatus('同期できません（再ログインしてください）', false, true)));
       unsub.push(meta.onSnapshot(d => {
