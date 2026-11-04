@@ -316,7 +316,14 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 .chart-foot{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:2px 14px}
 .chart-foot b{color:var(--ink)}
 .toc{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.toc .toc-title{width:100%;margin:0 0 2px}
+.toc-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 2px}
+.toc .toc-title{margin:0}
+.toc-head .status{margin:0;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--muted);text-align:right;min-width:0}
+.toc-head .status .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.toc-head .status.on{color:var(--teal)}
+.toc-head .status.on .dot{background:var(--teal);box-shadow:0 0 0 3px color-mix(in srgb,var(--teal) 22%,transparent)}
+.toc-head .status.warn{color:var(--danger)}
+.toc-head .status.warn .dot{background:var(--danger)}
 .toc button{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:700}
 .toc button:active{background:var(--coin-soft)}
 #syncSec,#goal,#form,#secSummary,#secChart,#secCal,#secDays,#secCharas,#secHist,#backupSec{scroll-margin-top:12px}
@@ -334,7 +341,6 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 .sync-form .field input{font:inherit;font-size:16px;padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box}
 .sync-form .field input:focus{outline:none;border-color:var(--coin)}
 .sync-form .field label{font-size:12px;font-weight:700;color:var(--muted)}
-.status.on{color:var(--teal);font-weight:700}
 .timer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted);font-weight:700}
 .timer b{font-family:var(--font-display);font-size:20px;color:var(--ink);font-variant-numeric:tabular-nums}
 .timer b.off{color:var(--muted);font-size:14px}
@@ -359,11 +365,10 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 <div class="wrap">
   <header>
     <h1><span class="coin-dot" aria-hidden="true"></span>ツムツム コイン帳</h1>
-    <div class="status" id="syncStatus">この端末に保存中</div>
   </header>
 
   <nav class="toc" id="toc" aria-labelledby="tocTitle">
-    <h2 class="toc-title" id="tocTitle">目次</h2>
+    <div class="toc-head"><h2 class="toc-title" id="tocTitle">目次</h2><div class="status" id="syncStatus" role="status"><span class="dot" aria-hidden="true"></span><span id="syncText">この端末に保存中</span></div></div>
     <button type="button" data-go="goal">BOX目標</button>
     <button type="button" data-go="form">記録する</button>
     <button type="button" data-go="secSummary">まとめ</button>
@@ -1547,7 +1552,7 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
   (() => {
     const CFG = window.FIREBASE_CONFIG;
     const statusEl = $('syncStatus');
-    const setStatus = (t, on) => { statusEl.textContent = t; statusEl.classList.toggle('on', !!on); };
+    const setStatus = (t, on, warn) => { $('syncText').textContent = t; statusEl.classList.toggle('on', !!on); statusEl.classList.toggle('warn', !!warn); };
     const show = id => ['syncOff','loginForm','syncOn'].forEach(x => { $(x).hidden = x !== id; });
     const msg = (t, bad) => { const m = $('syncMsg'); m.textContent = t; m.className = 'msg' + (bad ? ' bad' : t ? ' ok' : ''); };
     if (!CFG || !CFG.apiKey || !window.firebase){ show('syncOff'); setStatus('この端末に保存中'); return; }
@@ -1589,7 +1594,7 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
       for (let i = 0; i < ops.length; i += 400){
         const batch = db.batch();
         for (const [op, v] of ops.slice(i, i + 400)){ if (op === 'set') batch.set(col.doc(v.id), v); else batch.delete(col.doc(v)); }
-        batch.commit().catch(() => setStatus('同期できませんでした。電波を確認してください', false));
+        batch.commit().catch(() => setStatus('同期できません（電波を確認）', false, true));
       }
     };
     window.__pushGoal = v => { if (meta && ready) { try { meta.set({goal: JSON.parse(v)}, {merge: true}).catch(() => {}); } catch(_) {} } };
@@ -1600,7 +1605,7 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
     }
     auth.onAuthStateChanged(async user => {
       stop();
-      if (!user){ show('loginForm'); setStatus('この端末に保存中（同期はログインすると始まります）'); return; }
+      if (!user){ show('loginForm'); setStatus('未ログイン・この端末に保存中'); return; }
       show('syncOn'); $('syncWho').textContent = `${user.email} でログイン中`;
       setStatus('同期の準備中…');
       const home = db.collection('users').doc(user.uid);
@@ -1615,16 +1620,16 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
           const batch = db.batch(); mine.slice(i, i + 400).forEach(x => batch.set(col.doc(x.id), x)); await batch.commit();
           mine.slice(i, i + 400).forEach(x => synced.set(x.id, JSON.stringify(x)));
         }
-      } catch(e){ setStatus('同期できませんでした。電波を確認してください'); }
+      } catch(e){ setStatus('同期できません（電波を確認）', false, true); }
       ready = true;
       window.__syncing = true;
       unsub.push(col.onSnapshot(snap => {
         plays = snap.docs.map(d => d.data()).filter(x => x && typeof x.id === 'string' && x.play > 0 && x.result > 0);
         synced = new Map(plays.map(x => [x.id, JSON.stringify(x)]));
         try { localStorage.setItem(LS, JSON.stringify(plays)); } catch(_) {}
-        setStatus(snap.metadata.fromCache ? '同期中（オフライン・つながったら送ります）' : `同期中（${user.email}）`, !snap.metadata.fromCache);
+        setStatus(snap.metadata.fromCache ? 'オフライン（つながったら送ります）' : '同期中', !snap.metadata.fromCache); statusEl.title = user.email;
         render();
-      }, () => setStatus('同期できませんでした。もう一度ログインしてください')));
+      }, () => setStatus('同期できません（再ログインしてください）', false, true)));
       unsub.push(meta.onSnapshot(d => {
         const g = d.exists ? (d.data() || {}).goal : null;
         const ok = g && g.pulls >= 0 && g.held >= 0 && g.setAt;
