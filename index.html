@@ -98,7 +98,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-siz
   /* the title hides while scrolling down and comes back when scrolling up */
   .wrap{row-gap:0}
   body{padding-block:8px 0}
-  .wrap > header{max-height:110px;overflow:hidden;padding-top:12px;margin-bottom:14px;transition:max-height .25s ease,opacity .2s ease,margin-bottom .25s ease,padding-top .25s ease}
+  .wrap > header{max-height:110px;overflow:hidden;padding-top:4px;margin-bottom:8px;transition:max-height .25s ease,opacity .2s ease,margin-bottom .25s ease,padding-top .25s ease}
   .wrap > .tabbar{position:static;margin-bottom:14px;padding:4px;border:1px solid var(--line);border-radius:14px;background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none;grid-template-columns:repeat(3,1fr)}
   .wrap > .tabbar button[data-tab="rec"]{display:none}
   .wrap > .tabbar button{flex-direction:row;justify-content:center;gap:6px;font-size:14px;padding:8px 0}
@@ -106,7 +106,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-siz
   .wrap > .tabbar button[aria-current="page"]{background:color-mix(in srgb,var(--teal) 12%,var(--surface))}
   html body{padding-bottom:0 !important}
   .wrap .col-side[hidden]{display:flex !important}
-  .wrap.head-off > header{max-height:28px;padding-top:4px;margin-bottom:8px}
+  .wrap.head-off > header{}
   .wrap.head-off > header .app-title{display:none}
   .wrap.head-off > header .status{margin-left:auto}
   @media (prefers-reduced-motion: reduce){.wrap > header{transition:none}}
@@ -338,6 +338,9 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 /* app header: title + sync status */
 .apphead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .apphead h1{margin:0}
+/* the title is not shown (kept for screen readers); only the sync status sits at the top right */
+.apphead{justify-content:flex-end}
+.apphead .app-title{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .apphead .status{margin:0;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--muted);min-width:0}
 .apphead .status .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
 .apphead .status.on{color:var(--teal)}
