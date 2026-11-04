@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '1.6', date: '2026/11/05' };
+window.APP_VERSION = { no: '1.7', date: '2026/11/05' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -371,6 +371,29 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
 .seg-wide{display:flex;width:100%}
 .seg-wide button{flex:1;padding:8px 6px;font-size:13px}
+.pref{display:flex;flex-direction:column;gap:16px}
+.pref-row{display:flex;flex-direction:column;gap:8px}
+.pref-k{font-size:13px;font-weight:700;color:var(--muted)}
+.pref-num{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--muted);font-weight:700}
+.pref-num input,.price-grid input,.chara-row input{font:inherit;font-weight:700;font-size:16px;width:6em;padding:7px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
+.pref-num input:focus,.price-grid input:focus,.chara-row input:focus{outline:none;border-color:var(--coin)}
+.price-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.price-grid label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:var(--muted)}
+.price-grid input{width:100%;box-sizing:border-box}
+#charaList{display:flex;flex-direction:column;gap:8px}
+.chara-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.chara-row .nm{font-weight:700;min-width:0;overflow-wrap:anywhere}
+.chara-row .ct{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.chara-row .acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.chara-row .btn{padding:4px 10px;font-size:12px}
+.chara-row.off .nm{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+.chara-row input{width:9em;text-align:left}
+.btn.danger{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 45%,var(--line))}
+.btn.danger.solid{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn.danger.solid:disabled{opacity:.4}
+.wipe-confirm{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:12px;border:1.5px solid color-mix(in srgb,var(--danger) 45%,var(--line))}
+.wipe-check{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
+.wipe-check input{width:20px;height:20px;accent-color:var(--danger)}
 .update-box{display:flex;flex-direction:column;align-items:center;gap:8px}
 .update-box .msg{margin:0;text-align:center}
 .app-version{margin:0;text-align:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -696,6 +719,47 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
     </div>
   </section>
 
+  <section id="prefSec">
+    <h2>記録の設定</h2>
+    <div class="backup pref">
+      <div class="pref-row">
+        <span class="pref-k">開いたときに最初に出すタブ</span>
+        <div class="seg seg-wide" id="startTabSeg" role="group" aria-label="最初に出すタブ">
+          <button type="button" data-v="rec">記録</button><button type="button" data-v="sum">まとめ</button><button type="button" data-v="hist">履歴</button><button type="button" data-v="set">設定</button>
+        </div>
+      </div>
+      <div class="pref-row">
+        <label class="pref-k" for="breakMin">休憩とみなす時間（これを超えたらプレイ時間を記録しない）</label>
+        <div class="pref-num"><input id="breakMin" inputmode="numeric" autocomplete="off"><span>分</span></div>
+      </div>
+      <div class="pref-row">
+        <span class="pref-k">バックアップのお知らせ（ログインしていないときだけ出ます）</span>
+        <div class="seg seg-wide" id="backupOnSeg" role="group" aria-label="バックアップのお知らせ">
+          <button type="button" data-v="on">オン</button><button type="button" data-v="off">オフ</button>
+        </div>
+        <div class="pref-num" id="backupStepRow"><span>トータル純利益が</span><input id="backupStep" inputmode="numeric" autocomplete="off"><span>万枚ふえるごと</span></div>
+      </div>
+      <p class="msg ok" id="prefSaved" hidden>保存しました。</p>
+    </div>
+  </section>
+
+  <section id="priceSec">
+    <h2>アイテムの値段</h2>
+    <div class="backup pref">
+      <p class="msg" style="margin:0">ゲーム側で値段が変わったときや、スキル・イベントで安くなるときに直してください。これまでの記録のアイテム代は変わりません。</p>
+      <div class="price-grid" id="priceGrid"></div>
+      <div><button class="btn" id="priceReset" type="button">元の値段に戻す</button></div>
+    </div>
+  </section>
+
+  <section id="charaSec">
+    <h2>キャラ名の整理</h2>
+    <div class="backup pref">
+      <p class="msg" style="margin:0">名前を変えると、そのキャラの記録がすべて新しい名前になります。すでにある名前に変えると、2つのキャラの記録が1つにまとまります。「候補に出さない」にすると、記録の画面のボタンに出なくなります（記録は消えません）。</p>
+      <div id="charaList"></div>
+    </div>
+  </section>
+
   <section id="syncSec">
     <h2>同期</h2>
     <div class="backup sync">
@@ -709,6 +773,7 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn primary" id="loginBtn" type="submit">ログイン</button>
           <button class="btn" id="signupBtn" type="button">はじめて使う（新規登録）</button>
+          <button class="btn" id="resetPassBtn" type="button">パスワードを忘れたとき</button>
         </div>
         <p class="msg" id="syncMsg" aria-live="polite"></p>
       </form>
@@ -744,6 +809,23 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
     </div>
   </section>
 
+  <section id="dangerSec">
+    <h2>記録をすべて削除</h2>
+    <div class="backup pref danger-box">
+      <p class="msg" style="margin:0">最初からやり直したいとき用です。BOXの目標と設定は消えません。消す前に「ファイルに保存」しておくのがおすすめです。</p>
+      <div><button class="btn danger" id="wipeStart" type="button">すべての記録を削除する…</button></div>
+      <div id="wipeConfirm" class="wipe-confirm" hidden>
+        <p class="msg bad" id="wipeText" style="margin:0"></p>
+        <label class="wipe-check"><input type="checkbox" id="wipeAgree"> 消した記録は元に戻せないことを理解しました</label>
+        <div class="ed-actions">
+          <button class="btn danger solid" id="wipeDo" type="button" disabled>削除する</button>
+          <button class="btn" id="wipeCancel" type="button">やめる</button>
+        </div>
+      </div>
+      <p class="msg ok" id="wipeDone" hidden></p>
+    </div>
+  </section>
+
   <section id="updateSec" class="update-box">
     <p class="app-version" id="appVersion"></p>
     <button class="btn" id="forceReload" type="button">最新版に更新（読み込み直す）</button>
@@ -768,15 +850,45 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
   const hasDur = x => typeof x.dur === 'number' && x.dur > 0;
   const mmss = s => `${Math.floor(s/60)}:${pad(Math.floor(s%60))}`;
   const hm = s => { const h = Math.floor(s/3600), m = Math.floor(s%3600/60); return h ? `${h}時間${m}分` : `${m}分${pad(Math.floor(s%60))}秒`; };
-  const MAX_DUR = 1800; // 30 minutes
+  let MAX_DUR = 1800; // seconds; set from the settings
   const NONE = '未設定';
   const charaOf = x => (typeof x.chara === 'string' && x.chara) ? x.chara : NONE;
   const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   const LS = 'tsum-coin-plays', LS_MARK = 'tsum-coin-backup-mark', LS_COST = 'tsum-coin-last-cost', LS_START = 'tsum-coin-start', LS_CHARA = 'tsum-coin-last-chara', LS_FILTER = 'tsum-coin-filter';
-  const STEP = 300000;
   const lsGet = k => { try { return localStorage.getItem(k); } catch(_) { return null; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch(_){} if (k === 'tsum-coin-goal' && window.__pushGoal) window.__pushGoal(v); };
+  let STEP = 300000;
+
+  /* ---- settings (shared across devices when logged in) ---- */
+  const LS_SET = 'tsum-coin-settings';
+  const ITEM_DEFAULTS = {score:500, coin:500, exp:500, time:1000, bomb:1500, '54':1800};
+  function normSettings(o){
+    o = o || {};
+    const prices = {};
+    for (const k of Object.keys(ITEM_DEFAULTS)){ const v = Math.round(+((o.prices || {})[k])); prices[k] = v >= 0 && v <= 1e6 ? v : ITEM_DEFAULTS[k]; }
+    const bm = Math.round(+o.breakMin), bs = Math.round(+o.backupStep);
+    return {
+      prices,
+      breakMin: bm >= 1 && bm <= 600 ? bm : 30,
+      backupOn: o.backupOn !== false,
+      backupStep: bs >= 10000 ? bs : 300000,
+      startTab: ['rec','sum','hist','set'].includes(o.startTab) ? o.startTab : 'rec',
+      hiddenCharas: Array.isArray(o.hiddenCharas) ? o.hiddenCharas.filter(x => typeof x === 'string').slice(0, 200) : [],
+      updatedAt: +o.updatedAt || 0,
+    };
+  }
+  let settings = normSettings(null);
+  try { settings = normSettings(JSON.parse(lsGet(LS_SET) || 'null')); } catch(_) {}
+  function applySettingsVars(){ MAX_DUR = settings.breakMin * 60; STEP = settings.backupStep; }
+  applySettingsVars();
+  function applyPrices(){
+    document.querySelectorAll('#chips .chip.item').forEach(b => {
+      const v = settings.prices[b.dataset.k]; if (v == null) return;
+      b.dataset.c = String(v); const sp = b.querySelector('span'); if (sp) sp.textContent = fmt(v);
+    });
+  }
+  applyPrices();
 
   let plays = [];
   try { plays = JSON.parse(lsGet(LS) || '[]'); if (!Array.isArray(plays)) plays = []; } catch(_) { plays = []; }
@@ -887,13 +999,16 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
   syncItems(items.size > 0);
 
   /* item picker for the editors (same items as the entry form) */
-  const ITEM_DEFS = [...document.querySelectorAll('#chips .chip.item')].map(b => ({k: b.dataset.k, c: parseInt(b.dataset.c, 10), html: b.innerHTML}));
+  let ITEM_DEFS = [];
+  const readItemDefs = () => { ITEM_DEFS = [...document.querySelectorAll('#chips .chip.item')].map(b => ({k: b.dataset.k, c: parseInt(b.dataset.c, 10), html: b.innerHTML})); };
+  readItemDefs();
   const itemCost = set => ITEM_DEFS.reduce((s, d) => set.has(d.k) ? s + d.c : s, 0);
   function makePicker(boxId, inputId, extra){
     const box = $(boxId), input = $(inputId);
     const st = {set: new Set(), used: false};
-    box.innerHTML = ITEM_DEFS.map(d => `<button class="chip item" type="button" data-k="${d.k}" aria-pressed="false">${d.html}</button>`).join('')
-      + `<button class="chip clear" type="button" data-k="none">${extra}</button>`;
+    st.build = () => { box.innerHTML = ITEM_DEFS.map(d => `<button class="chip item" type="button" data-k="${d.k}" aria-pressed="false">${d.html}</button>`).join('')
+      + `<button class="chip clear" type="button" data-k="none">${extra}</button>`; if (st.paint) st.paint(); };
+    st.build();
     st.paint = () => box.querySelectorAll('.chip.item').forEach(b => { const on = st.set.has(b.dataset.k); b.classList.toggle('picked', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     st.reset = (keys, cost) => { st.set = new Set(keys || []); st.used = false; input.value = cost == null ? '' : fmt(cost); st.paint(); };
     box.addEventListener('click', e => {
@@ -981,8 +1096,9 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
     }
     if (filter && !charaStats.has(filter)){ filter = ''; lsSet(LS_FILTER, ''); }
     const names = [...charaStats.keys()];
-    $('charaChips').innerHTML = names.filter(n => n !== NONE).slice(0, 12).map(n => `<button class="chip" type="button" data-n="${esc(n)}">${esc(n)}</button>`).join('');
-    $('edCharaChips').innerHTML = names.filter(n => n !== NONE).map(n => `<button class="chip" type="button" data-n="${esc(n)}">${esc(n)}</button>`).join('');
+    const shown = names.filter(n => n !== NONE && !settings.hiddenCharas.includes(n));
+    $('charaChips').innerHTML = shown.slice(0, 12).map(n => `<button class="chip" type="button" data-n="${esc(n)}">${esc(n)}</button>`).join('');
+    $('edCharaChips').innerHTML = shown.map(n => `<button class="chip" type="button" data-n="${esc(n)}">${esc(n)}</button>`).join('');
     $('bulkChips').innerHTML = $('edCharaChips').innerHTML + `<button class="chip clear" type="button" data-n="${NONE}">未設定にする</button>`;
     markChips();
     $('filter').innerHTML = '<option value="">すべてのキャラ</option>' + names.map(n => `<option value="${esc(n)}"${n===filter?' selected':''}>${esc(n)}</option>`).join('');
@@ -1066,13 +1182,14 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
     const steps = Math.max(0, Math.floor(sum(all, x => x.result - costOf(x)) / STEP));
     if (steps < mark){ mark = steps; lsSet(LS_MARK, String(mark)); }
     // while synced with Firebase the records are already saved in the cloud: no reminder, and count from here
-    if (window.__syncing && steps > mark){ mark = steps; lsSet(LS_MARK, String(mark)); }
+    if ((window.__syncing || !settings.backupOn) && steps > mark){ mark = steps; lsSet(LS_MARK, String(mark)); }
     if (steps > mark){
       $('bannerText').textContent = `トータル純利益が ${fmt(steps * STEP)} 枚を突破しました。記録をバックアップしておきましょう。`;
       $('banner').hidden = false;
     } else $('banner').hidden = true;
     if (typeof renderGoal === 'function' && goalReady) renderGoal();
     if (goalReady) renderCalendar(sorted);
+    if (goalReady && editingChara === null && !$('tabSet').hidden) renderCharaList();
   }
   $('more').addEventListener('click', () => { showN += 30; render(); });
   function setHist(open){
@@ -1658,6 +1775,13 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
       msg('登録中…'); auth.createUserWithEmailAndPassword(m, p).catch(err => msg(errText(err), true));
     });
     $('logoutBtn').addEventListener('click', () => auth.signOut());
+    $('resetPassBtn').addEventListener('click', () => {
+      const m = $('syncEmail').value.trim();
+      if (!m) return msg('登録したメールアドレスを入れてから、もう一度押してください。', true);
+      msg('送信中…');
+      auth.sendPasswordResetEmail(m).then(() => msg(`${m} にパスワード再設定のメールを送りました。メールのリンクから新しいパスワードを決めて、ここでログインしてください（届かないときは迷惑メールも見てください）。`))
+        .catch(err => msg(errText(err), true));
+    });
 
     // local changes -> cloud (only what changed since the last sync)
     window.__pushPlays = () => {
@@ -1673,6 +1797,7 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
         batch.commit().catch(() => setStatus('同期できません（電波を確認）', false, true));
       }
     };
+    window.__pushSettings = () => { if (meta && ready && window.__getSettings) meta.set({settings: window.__getSettings()}, {merge: true}).catch(() => {}); };
     window.__pushGoal = v => { if (meta && ready) { try { meta.set({goal: JSON.parse(v)}, {merge: true}).catch(() => {}); } catch(_) {} } };
 
     function stop(){
@@ -1732,6 +1857,10 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
         } else if (goal && (!ok || Date.parse(goal.setAt) > Date.parse(g.setAt))){
           meta.set({goal}, {merge: true}).catch(() => {});
         }
+        // settings: newer one wins
+        const rs = d.exists ? (d.data() || {}).settings : null, ls = window.__getSettings ? window.__getSettings() : null;
+        if (rs && ls && (+rs.updatedAt || 0) > (ls.updatedAt || 0)) window.__applyRemoteSettings(rs);
+        else if (ls && ls.updatedAt && (!rs || ls.updatedAt > (+rs.updatedAt || 0))) window.__pushSettings();
       }, () => {}));
     });
   })();
@@ -1784,7 +1913,7 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
   const darkMQ = window.matchMedia('(prefers-color-scheme: dark)');
   if (darkMQ.addEventListener) darkMQ.addEventListener('change', () => applyTheme(lsGet(LS_THEME) || 'auto'));
   applyTheme(lsGet(LS_THEME) || 'auto');
-  showTab(wideMQ.matches ? 'sum' : 'rec');
+  showTab(settings.startTab || 'rec');
 
   { const v = window.APP_VERSION || {}; $('appVersion').textContent = `ツムツム コイン帳　バージョン ${v.no || '?'}（${v.date || ''}）`; }
   // force a fresh copy of the app (home-screen apps can keep an old one even after closing)
@@ -1802,6 +1931,102 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
   });
   // tidy the address after a forced reload
   if (/[?&]r=\d+/.test(location.search)) { try { history.replaceState(null, '', location.pathname); } catch(_) {} }
+  /* ---- settings screen ---- */
+  const ITEM_NAMES = {score:'スコア', coin:'コイン', exp:'Exp', time:'タイム', bomb:'ボム', '54':'5→4'};
+  function saveSettings(){
+    settings.updatedAt = Date.now();
+    try { localStorage.setItem(LS_SET, JSON.stringify(settings)); } catch(_) {}
+    if (window.__pushSettings) window.__pushSettings();
+    applyAllSettings();
+    const m = $('prefSaved'); m.hidden = false; clearTimeout(saveSettings.t); saveSettings.t = setTimeout(() => { m.hidden = true; }, 2000);
+  }
+  function applyAllSettings(){
+    applySettingsVars(); applyPrices(); readItemDefs(); edPick.build(); bulkPick.build();
+    syncItems(items.size > 0); renderSettings(); tick(); render();
+  }
+  window.__applyRemoteSettings = o => {
+    settings = normSettings(o);
+    try { localStorage.setItem(LS_SET, JSON.stringify(settings)); } catch(_) {}
+    applyAllSettings();
+  };
+  window.__getSettings = () => settings;
+  const segSet = (id, v) => document.querySelectorAll('#' + id + ' button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === v ? 'true' : 'false'));
+  let editingChara = null;
+  function renderSettings(){
+    segSet('startTabSeg', settings.startTab);
+    segSet('backupOnSeg', settings.backupOn ? 'on' : 'off');
+    $('backupStepRow').hidden = !settings.backupOn;
+    if (document.activeElement !== $('breakMin')) $('breakMin').value = settings.breakMin;
+    if (document.activeElement !== $('backupStep')) $('backupStep').value = settings.backupStep / 10000;
+    if (!$('priceGrid').contains(document.activeElement)){
+      $('priceGrid').innerHTML = ['score','coin','exp','time','bomb','54'].map(k => `<label>${ITEM_NAMES[k]}<input inputmode="numeric" autocomplete="off" data-k="${k}" value="${fmt(settings.prices[k])}"></label>`).join('');
+    }
+    if (editingChara === null) renderCharaList();
+  }
+  function renderCharaList(){
+    const cnt = new Map();
+    for (const x of plays){ const k = charaOf(x); cnt.set(k, (cnt.get(k) || 0) + 1); }
+    const names = [...cnt.keys()].filter(n => n !== NONE).sort((a, b) => cnt.get(b) - cnt.get(a));
+    const extra = settings.hiddenCharas.filter(n => !cnt.has(n));
+    $('charaList').innerHTML = names.length || extra.length
+      ? names.map(n => { const off = settings.hiddenCharas.includes(n);
+          return `<div class="chara-row${off ? ' off' : ''}" data-n="${esc(n)}"><span class="nm">${esc(n)}</span><span class="ct">${cnt.get(n)}件</span><span class="acts"><button class="btn" type="button" data-act="rename">名前を変更</button><button class="btn" type="button" data-act="toggle">${off ? '候補に出す' : '候補に出さない'}</button></span></div>`; }).join('')
+      : '<p class="msg" style="margin:0">キャラを入れて記録すると、ここに出ます。</p>';
+  }
+  $('charaList').addEventListener('click', e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const row = b.closest('.chara-row'), n = row.dataset.n;
+    if (b.dataset.act === 'toggle'){
+      const h = new Set(settings.hiddenCharas); if (h.has(n)) h.delete(n); else h.add(n);
+      settings.hiddenCharas = [...h]; saveSettings(); return;
+    }
+    if (b.dataset.act === 'rename'){
+      editingChara = n;
+      row.innerHTML = `<input maxlength="30" value="${esc(n)}" aria-label="新しい名前"><span class="acts"><button class="btn primary" type="button" data-act="save">保存</button><button class="btn" type="button" data-act="cancel">やめる</button></span><span class="msg" style="width:100%;margin:0" data-hint></span>`;
+      const inp = row.querySelector('input'); inp.focus(); inp.select();
+      inp.addEventListener('input', () => {
+        const v = inp.value.trim(), h = row.querySelector('[data-hint]');
+        h.textContent = v && v !== n && plays.some(x => charaOf(x) === v) ? `「${v}」はすでにあります。保存すると2つの記録が「${v}」にまとまります。` : '';
+      });
+      return;
+    }
+    if (b.dataset.act === 'cancel'){ editingChara = null; renderCharaList(); return; }
+    if (b.dataset.act === 'save'){
+      const v = row.querySelector('input').value.trim();
+      editingChara = null;
+      if (v && v !== n){
+        for (const x of plays) if (charaOf(x) === n) x.chara = v;
+        settings.hiddenCharas = settings.hiddenCharas.filter(h => h !== n);
+        if (charaIn.value.trim() === n){ charaIn.value = v; lsSet(LS_CHARA, v); }
+        if (filter === n){ filter = v; lsSet(LS_FILTER, v); }
+        save(); saveSettings();
+      } else renderCharaList();
+    }
+  });
+  $('startTabSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (!b) return; settings.startTab = b.dataset.v; saveSettings(); });
+  $('backupOnSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (!b) return; settings.backupOn = b.dataset.v === 'on'; saveSettings(); });
+  $('breakMin').addEventListener('change', () => { const v = toInt($('breakMin').value); if (v >= 1 && v <= 600){ settings.breakMin = v; saveSettings(); } else $('breakMin').value = settings.breakMin; });
+  $('backupStep').addEventListener('change', () => { const v = toInt($('backupStep').value); if (v >= 1){ settings.backupStep = v * 10000; mark = Math.floor(sum0() / (v * 10000)); lsSet(LS_MARK, String(mark)); saveSettings(); } else $('backupStep').value = settings.backupStep / 10000; });
+  $('priceGrid').addEventListener('input', e => { const i = e.target.closest('input'); if (!i) return; const v = toInt(i.value); i.value = isNaN(v) ? '' : v.toLocaleString('ja-JP'); });
+  $('priceGrid').addEventListener('change', e => { const i = e.target.closest('input'); if (!i) return; const v = toInt(i.value); if (v >= 0){ settings.prices[i.dataset.k] = v; i.blur(); saveSettings(); } else i.value = fmt(settings.prices[i.dataset.k]); });
+  $('priceReset').addEventListener('click', () => { settings.prices = {...ITEM_DEFAULTS}; saveSettings(); });
+
+  /* ---- delete every record (two steps) ---- */
+  $('wipeStart').addEventListener('click', () => {
+    $('wipeText').textContent = `${plays.length}件の記録が消えます。` + (window.__syncing ? '同期しているので、ほかの端末からも消えます。' : '');
+    $('wipeAgree').checked = false; $('wipeDo').disabled = true; $('wipeConfirm').hidden = false; $('wipeDone').hidden = true;
+  });
+  $('wipeAgree').addEventListener('change', () => { $('wipeDo').disabled = !$('wipeAgree').checked; });
+  $('wipeCancel').addEventListener('click', () => { $('wipeConfirm').hidden = true; });
+  $('wipeDo').addEventListener('click', () => {
+    if (!$('wipeAgree').checked) return;
+    const n = plays.length; plays = []; save();
+    mark = 0; lsSet(LS_MARK, '0');
+    $('wipeConfirm').hidden = true; $('wipeDone').textContent = `${n}件の記録を削除しました。`; $('wipeDone').hidden = false;
+    render(); renderSettings();
+  });
+  renderSettings();
+
   goalReady = true;
   showGoalForm();
   render(); updatePreview(); tick(); renderGoal();
