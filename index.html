@@ -552,20 +552,6 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
   </div>
 
   <div class="tabpage" id="tabHist" data-page="hist" hidden>
-  <section id="secDays">
-    <button class="hist-toggle" id="daysToggle" type="button" aria-expanded="false" aria-controls="daysBody"><span class="chev" aria-hidden="true">▸</span><span>日別</span><span class="hist-count" id="daysCount"></span><span class="hist-hint">タップで表示</span></button>
-    <div id="daysBody" hidden>
-      <div class="list" id="days"></div>
-    </div>
-  </section>
-
-  <section id="secCharas">
-    <button class="hist-toggle" id="charasToggle" type="button" aria-expanded="false" aria-controls="charasBody"><span class="chev" aria-hidden="true">▸</span><span>キャラ別</span><span class="hist-count" id="charasCount"></span><span class="hist-hint">タップで表示</span></button>
-    <div id="charasBody" hidden>
-      <div class="list" id="charas"></div>
-    </div>
-  </section>
-
   <section id="secHist">
     <button class="hist-toggle" id="histToggle" type="button" aria-expanded="false" aria-controls="histBody"><span class="chev" aria-hidden="true">▸</span><span>プレイ履歴</span><span class="hist-count" id="histCount"></span><span class="hist-hint">タップで表示</span></button>
     <div id="histBody" hidden>
@@ -609,6 +595,21 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
     <button class="more" id="more" type="button" hidden>もっと見る</button>
     </div>
   </section>
+
+  <section id="secDays">
+    <button class="hist-toggle" id="daysToggle" type="button" aria-expanded="false" aria-controls="daysBody"><span class="chev" aria-hidden="true">▸</span><span>日別</span><span class="hist-count" id="daysCount"></span><span class="hist-hint">タップで表示</span></button>
+    <div id="daysBody" hidden>
+      <div class="list" id="days"></div>
+    </div>
+  </section>
+
+  <section id="secCharas">
+    <button class="hist-toggle" id="charasToggle" type="button" aria-expanded="false" aria-controls="charasBody"><span class="chev" aria-hidden="true">▸</span><span>キャラ別</span><span class="hist-count" id="charasCount"></span><span class="hist-hint">タップで表示</span></button>
+    <div id="charasBody" hidden>
+      <div class="list" id="charas"></div>
+    </div>
+  </section>
+
   </div>
 
   <div class="tabpage" id="tabSet" data-page="set" hidden>
@@ -1271,6 +1272,7 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
     const [y, m] = calSel.split('-').map(Number);
     if (y !== calY || m - 1 !== calM){ calY = y; calM = m - 1; }
     if ((window.__histDays || []).includes(calSel)){ histDay = calSel; showN = 30; render(); } else renderCalendar();
+    if (typeof curTab !== 'undefined' && curTab === 'hist' && $('histBody').hidden) setHist(true);
   });
 
   /* ---- premium box goal ---- */
@@ -1700,6 +1702,10 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
     document.querySelectorAll('#tabbar button').forEach(b => b.setAttribute('aria-current', b.dataset.tab === t ? 'page' : 'false'));
     document.querySelectorAll('.tabpage').forEach(p => { p.hidden = p.dataset.page !== t; });
     document.querySelector('.col-main').hidden = t === 'rec';
+    // one calendar, shown on both まとめ and 履歴: move it into the open tab
+    const cal = $('secCal');
+    if (t === 'hist' && cal.parentNode !== $('tabHist')) $('tabHist').insertBefore(cal, $('tabHist').firstChild);
+    if (t === 'sum' && cal.parentNode !== $('tabSum')) $('tabSum').appendChild(cal);
     if (t === 'set') showGoalForm();
     if (t === 'sum') renderChart();
     if (wideMQ.matches) document.querySelector('.col-main').scrollTop = 0; else window.scrollTo(0, 0);
