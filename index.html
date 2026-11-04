@@ -15,18 +15,18 @@ try{var t=localStorage.getItem("tsum-coin-theme");if(t==="light"||t==="dark")doc
 <style>
 :root{--top-extra:0px;color-scheme:light;padding-top:calc(env(safe-area-inset-top,0px) + var(--top-extra));padding-bottom:env(safe-area-inset-bottom,0px)}
 /* home-screen app (iPhone / iPad): the status bar (clock, battery) blurs what sits under it, so start the page below it */
-@media (display-mode: standalone){:root{--top-extra:6px}}
-:root.standalone{--top-extra:6px}
+@media (display-mode: standalone){:root{--top-extra:9px}}
+:root.standalone{--top-extra:9px}
 /* iPad (wider screens) needs a little more room under the status bar */
-@media (display-mode: standalone) and (min-width:700px){:root{--top-extra:12px}}
-@media (min-width:700px){:root.standalone{--top-extra:12px}}
+@media (display-mode: standalone) and (min-width:700px){:root{--top-extra:20px}}
+@media (min-width:700px){:root.standalone{--top-extra:20px}}
 body{margin:0;font:14px/1.5 system-ui,-apple-system,sans-serif}
 img{max-width:100%}
 [hidden]{display:none!important}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '1.2', date: '2026/11/04' };
+window.APP_VERSION = { no: '1.3', date: '2026/11/05' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
