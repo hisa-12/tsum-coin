@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '1.3', date: '2026/11/05' };
+window.APP_VERSION = { no: '1.4', date: '2026/11/05' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -61,14 +61,17 @@ window.FIREBASE_CONFIG = {
   --coin-soft:#fff3cf;
   --teal:#0f6b5e;
   --danger:#b3261e;
+  --glass-tint:rgba(255,255,255,.52);--glass-edge:rgba(255,255,255,.75);--glass-hi:rgba(255,255,255,.9);--glass-shadow:rgba(16,48,42,.22);--glass-pick:rgba(15,107,94,.13);
   --font-display:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Hiragino Sans",system-ui,sans-serif;
   --font-body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0f1715;--surface:#17221f;--ink:#e6efec;--muted:#93a8a3;--line:#2a3a36;
+  --glass-tint:rgba(36,52,48,.5);--glass-edge:rgba(255,255,255,.16);--glass-hi:rgba(255,255,255,.28);--glass-shadow:rgba(0,0,0,.55);--glass-pick:rgba(92,194,177,.18);
   --coin:#f2bd2c;--coin-deep:#f7d26a;--coin-soft:#2d2610;--teal:#5cc2b1;--danger:#ff8a80;color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0f1715;--surface:#17221f;--ink:#e6efec;--muted:#93a8a3;--line:#2a3a36;
+  --glass-tint:rgba(36,52,48,.5);--glass-edge:rgba(255,255,255,.16);--glass-hi:rgba(255,255,255,.28);--glass-shadow:rgba(0,0,0,.55);--glass-pick:rgba(92,194,177,.18);
   --coin:#f2bd2c;--coin-deep:#f7d26a;--coin-soft:#2d2610;--teal:#5cc2b1;--danger:#ff8a80;color-scheme:dark}
 
 body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.6;
@@ -371,6 +374,24 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
 .update-box{display:flex;flex-direction:column;align-items:center;gap:8px}
 .update-box .msg{margin:0;text-align:center}
 .app-version{margin:0;text-align:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+/* iPhone: Liquid Glass style tab bar (a floating glass capsule) */
+@media (max-width:699px){
+  .tabbar{left:max(14px, env(safe-area-inset-left, 0px));right:max(14px, env(safe-area-inset-right, 0px));
+    bottom:max(10px, calc(env(safe-area-inset-bottom, 0px) - 10px));
+    padding:6px;border-radius:32px;border:1px solid var(--glass-edge);border-top-width:1px;
+    background:linear-gradient(180deg, var(--glass-tint), color-mix(in srgb, var(--glass-tint) 70%, transparent));
+    -webkit-backdrop-filter:blur(22px) saturate(1.9) brightness(1.04);backdrop-filter:blur(22px) saturate(1.9) brightness(1.04);
+    box-shadow:0 12px 34px -10px var(--glass-shadow),0 2px 6px -2px var(--glass-shadow),inset 0 1px 0 var(--glass-hi),inset 0 -1px 1px color-mix(in srgb,var(--glass-hi) 35%,transparent);
+    overflow:hidden;isolation:isolate}
+  .tabbar::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;
+    background:radial-gradient(120% 90% at 20% -30%, color-mix(in srgb,var(--glass-hi) 55%,transparent), transparent 60%),
+               radial-gradient(90% 70% at 90% 130%, color-mix(in srgb,var(--glass-hi) 25%,transparent), transparent 60%)}
+  .tabbar button{border-radius:26px;padding:6px 0 5px;transition:transform .18s cubic-bezier(.3,1.6,.5,1),background-color .2s}
+  .tabbar button[aria-current="page"]{background:var(--glass-pick);box-shadow:inset 0 1px 0 color-mix(in srgb,var(--glass-hi) 70%,transparent),inset 0 0 0 1px color-mix(in srgb,var(--glass-hi) 30%,transparent)}
+  .tabbar button:active{transform:scale(1.08);background:var(--glass-pick)}
+  body{padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px)) !important}
+}
+@media (max-width:699px) and (prefers-reduced-motion: reduce){.tabbar button{transition:none}.tabbar button:active{transform:none}}
 .timer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted);font-weight:700}
 .timer b{font-family:var(--font-display);font-size:20px;color:var(--ink);font-variant-numeric:tabular-nums}
 .timer b.off{color:var(--muted);font-size:14px}
