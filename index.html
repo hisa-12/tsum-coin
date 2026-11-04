@@ -1645,10 +1645,9 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
       let last = 0;
       col.addEventListener('scroll', () => {
         if (!mq.matches) return;
-        // hidden once you scroll down; shown again only when back at the very top
+        // shown only when the page first opens; once you scroll down it stays hidden
         const t = col.scrollTop;
-        if (t <= 2) wrap.classList.remove('head-off');
-        else if (t - last > 6) wrap.classList.add('head-off');
+        if (t - last > 6) wrap.classList.add('head-off');
         last = t;
       }, {passive: true});
     });
