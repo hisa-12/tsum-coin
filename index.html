@@ -1,0 +1,1637 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ツムツム コイン帳</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f3f6f5">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-180.png">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px/1.5 system-ui,-apple-system,sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<script>
+/* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
+  authDomain: "tsum-coin.firebaseapp.com",
+  projectId: "tsum-coin",
+  storageBucket: "tsum-coin.firebasestorage.app",
+  messagingSenderId: "1034166804823",
+  appId: "1:1034166804823:web:d60ad0168f10d316919e12"
+};
+/* ▲ ここまで */
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="コイン帳">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: one narrow column like a game result screen — input on top, the multiplier as the hero number, stats and history below */
+:root{
+  --bg:#f3f6f5;
+  --surface:#ffffff;
+  --ink:#16302b;
+  --muted:#5d746f;
+  --line:#d8e2df;
+  --coin:#e0a100;
+  --coin-deep:#9a6b00;
+  --coin-soft:#fff3cf;
+  --teal:#0f6b5e;
+  --danger:#b3261e;
+  --font-display:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Hiragino Sans",system-ui,sans-serif;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1715;--surface:#17221f;--ink:#e6efec;--muted:#93a8a3;--line:#2a3a36;
+  --coin:#f2bd2c;--coin-deep:#f7d26a;--coin-soft:#2d2610;--teal:#5cc2b1;--danger:#ff8a80;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1715;--surface:#17221f;--ink:#e6efec;--muted:#93a8a3;--line:#2a3a36;
+  --coin:#f2bd2c;--coin-deep:#f7d26a;--coin-soft:#2d2610;--teal:#5cc2b1;--danger:#ff8a80;color-scheme:dark}
+
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+.col{display:flex;flex-direction:column;gap:22px;min-width:0}
+
+/* Tablet: one wider column */
+@media (min-width:700px){
+  .wrap{max-width:760px}
+  body{padding-block:28px 48px}
+  .wrap .stats{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .wrap .stat .v{font-size:20px}
+  .wrap .cal-d{min-height:58px;padding:5px 3px 6px}
+  .wrap .cal-d .dn{font-size:13px}
+  .wrap .cal-d .dv{font-size:12.5px}
+  .wrap .cal-w .dv{font-size:12.5px}
+  .wrap .cal-h{font-size:12.5px}
+  .wrap .cal-grid{gap:5px}
+}
+/* PC / landscape tablet: input on the left (stays in view), results on the right */
+@media (min-width:1100px){
+  .wrap{max-width:1280px;display:grid;grid-template-columns:minmax(360px,420px) minmax(0,1fr);column-gap:32px;row-gap:22px;align-items:start}
+  .wrap > header,.wrap > .toc{grid-column:1 / -1}
+  /* left and right scroll on their own; the page itself fits the screen */
+  html,body{overflow:hidden}
+  body{padding-block:20px 0}
+  .wrap{height:calc(100vh - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));height:calc(100dvh - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));grid-template-rows:auto auto minmax(0,1fr)}
+  .col-side,.col-main{height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:2px 6px 0 2px;scrollbar-width:thin}
+  .col-side::after,.col-main::after{content:"";flex:none;height:6px}
+  .wrap .goal-left{font-size:34px}
+}
+.num{font-variant-numeric:tabular-nums}
+h1{font-family:var(--font-display);font-weight:800;font-size:22px;margin:0;display:flex;align-items:center;gap:10px;text-wrap:balance}
+.coin-dot{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe9a3,var(--coin) 55%,var(--coin-deep));box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--coin-deep) 60%,transparent);flex:none}
+.status{font-size:12px;color:var(--muted);margin-top:2px}
+h2{font-family:var(--font-display);font-weight:800;font-size:15px;margin:0 0 10px;letter-spacing:.04em;color:var(--muted)}
+
+/* Input card */
+.entry{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field label{font-size:13px;font-weight:700;color:var(--muted)}
+.field input{font:inherit;font-family:var(--font-display);font-weight:800;font-size:22px;padding:10px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box;font-variant-numeric:tabular-nums}
+.field input:focus{outline:none;border-color:var(--coin)}
+.result{display:flex;align-items:baseline;justify-content:space-between;gap:12px;background:var(--coin-soft);border-radius:14px;padding:12px 16px;flex-wrap:wrap}
+.result .lbl{font-size:13px;font-weight:700;color:var(--coin-deep)}
+.mult{font-family:var(--font-display);font-weight:800;font-size:44px;line-height:1;color:var(--coin-deep)}
+.mult small{font-size:22px;margin-right:2px}
+.mult.empty{color:color-mix(in srgb,var(--coin-deep) 35%,transparent)}
+.hint{font-size:12px;color:var(--muted);margin:0}
+.err{font-size:13px;color:var(--danger);margin:0}
+button{font:inherit;cursor:pointer}
+.save{font-family:var(--font-display);font-weight:800;font-size:17px;border:0;border-radius:14px;padding:13px;background:var(--teal);color:#fff}
+:root[data-theme="dark"] .save{color:#0f1715}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .save{color:#0f1715}}
+.save:disabled{opacity:.4;cursor:default}
+button:focus-visible,input:focus-visible{outline:2px solid var(--coin);outline-offset:2px}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0}
+.stat .k{font-size:12px;color:var(--muted);font-weight:700}
+.stat .v{font-family:var(--font-display);font-weight:800;font-size:22px;line-height:1.3;overflow-wrap:anywhere}
+.stat .s{font-size:12px;color:var(--muted)}
+.stat.today{grid-column:1/-1;background:var(--coin-soft);border-color:transparent}
+.stat.today .v{font-size:32px;color:var(--coin-deep)}
+
+/* Tables */
+.list{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:9px 12px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+th{font-size:12px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+tr+tr td{border-top:1px solid var(--line)}
+td.x{font-weight:700;color:var(--coin-deep)}
+td.pno{color:var(--muted);font-weight:700;font-size:12px;text-align:right;padding-right:4px}
+.del{border:0;background:none;color:var(--muted);font-size:13px;padding:4px 6px;border-radius:8px}
+.del.armed{color:#fff;background:var(--danger)}
+.empty-note{padding:18px;color:var(--muted);font-size:14px;text-align:center}
+.more{display:block;margin:0 auto;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 16px;font-size:13px;margin-top:10px}
+</style>
+<style>
+/* additions: item chips, net profit, backup */
+.items{display:flex;flex-direction:column;gap:8px}
+.items-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.items-head label{font-size:13px;font-weight:700;color:var(--muted)}
+.cost{display:flex;align-items:center;gap:6px}
+.cost input{font:inherit;font-weight:700;font-size:16px;width:7.5em;padding:6px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
+.cost input:focus{outline:none;border-color:var(--coin)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:5px 11px;font-size:13px;font-weight:700}
+.chip span{color:var(--muted);font-weight:500;margin-left:4px;font-variant-numeric:tabular-nums}
+.chip.clear{color:var(--muted)}
+.chip.item{border-width:1.5px}
+.chip.item.picked{border:3px solid var(--teal);padding:3.5px 9.5px;background:color-mix(in srgb,var(--teal) 14%,var(--surface));color:var(--teal)}
+.chip.item.picked span{color:var(--teal)}
+.result-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.result{flex-direction:column;align-items:flex-start;gap:4px}
+.net{font-family:var(--font-display);font-weight:800;font-size:30px;line-height:1.1;color:var(--teal)}
+.net.neg{color:var(--danger)}
+.net.empty{color:color-mix(in srgb,var(--teal) 35%,transparent)}
+.result.netbox{background:color-mix(in srgb,var(--teal) 12%,var(--surface))}
+.result.netbox .lbl{color:var(--teal)}
+.mult{font-size:28px}
+.result{padding:8px 14px}
+.net{font-size:24px}
+.today-pair{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.today-pair > div{min-width:0;padding-right:12px}
+.today-pair > div + div{padding-left:14px;padding-right:0;border-left:1.5px solid color-mix(in srgb,var(--coin-deep) 30%,transparent)}
+.stat.today .today-pair .v{font-size:clamp(20px,6.4vw,30px);line-height:1.25;white-space:nowrap}
+.stat.today .v.netv{color:var(--teal)}
+td.n{font-weight:700;color:var(--teal)}
+td.n.neg{color:var(--danger)}
+.chara-field input{font:inherit;font-weight:700;font-size:17px;padding:8px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box}
+.chara-field input:focus{outline:none;border-color:var(--coin)}
+.chip.on{border-color:var(--teal);background:color-mix(in srgb,var(--teal) 14%,var(--surface));color:var(--teal)}
+.sec-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.sec-head h2{margin:0}
+.sec-head select{font:inherit;font-weight:700;font-size:14px;padding:6px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);max-width:60%}
+.filter-note{font-size:12px;color:var(--teal);font-weight:700;margin:-4px 0 8px}
+.cname{border:0;background:none;padding:0;color:var(--ink);font-weight:700;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tr.sel td{background:color-mix(in srgb,var(--teal) 10%,transparent)}
+.edit{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font-size:13px;font-weight:700;padding:3px 10px;border-radius:8px}
+.hist-toggle{width:100%;display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;padding:12px 14px;font-family:var(--font-display);font-weight:800;font-size:15px;text-align:left}
+.hist-toggle .chev{display:inline-block;transition:transform .2s;color:var(--muted)}
+.hist-toggle[aria-expanded="true"]{margin-bottom:10px}
+.hist-toggle[aria-expanded="true"] .chev{transform:rotate(90deg)}
+@media (prefers-reduced-motion: reduce){.hist-toggle .chev{transition:none}}
+.hist-count{font-family:var(--font-body);font-size:13px;color:var(--muted);font-weight:700}
+.hist-hint{margin-left:auto;font-family:var(--font-body);font-size:12px;color:var(--muted);font-weight:500}
+.hist-toggle[aria-expanded="true"] .hist-hint{display:none}
+.hist-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:center;margin-bottom:8px}
+.hist-nav button{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;width:40px;height:36px;font-size:18px;font-weight:700;flex:none}
+.hist-nav button:disabled{opacity:.35;cursor:default}
+.hist-nav b{font-family:var(--font-display);font-size:16px}
+.hist-nav .s{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+td.pno.day{color:var(--ink)}
+.hist-tools{display:flex;justify-content:flex-end;margin:-4px 0 8px}
+.bulk{background:var(--surface);border:1.5px solid var(--coin);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px;margin-bottom:10px}
+.bulk .field input{font:inherit;font-weight:700;font-size:16px;padding:7px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box}
+.bulk .field label{font-size:12px;font-weight:700;color:var(--muted)}
+input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-align:middle}
+.selecting tbody tr{cursor:pointer}
+.editor{background:var(--surface);border:1.5px solid var(--teal);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px;margin-bottom:10px}
+.ed-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ed-head b{font-family:var(--font-display);font-size:16px}
+.ed-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ed-grid .wide{grid-column:1/-1}
+.ed-grid label{font-size:12px;font-weight:700;color:var(--muted)}
+.ed-grid input{font:inherit;font-weight:700;font-size:16px;padding:7px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box;font-variant-numeric:tabular-nums;min-width:0}
+.ed-grid input[type="datetime-local"]{-webkit-appearance:none;appearance:none;display:block;min-height:2.5em;text-align:left;max-width:100%}
+.ed-grid input::-webkit-date-and-time-value{text-align:left}
+.ed-grid > .field{min-width:0;overflow:hidden}
+.ed-grid input:focus{outline:none;border-color:var(--coin)}
+.ed-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ed-actions .del{margin-left:auto;border:1.5px solid var(--line);padding:7px 12px;font-weight:700}
+.est-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--muted);font-weight:700;margin-top:-4px}
+.est-row input{font:inherit;font-weight:700;font-size:16px;width:5.5em;padding:6px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
+.est-row input:focus{outline:none;border-color:var(--coin)}
+.est-note{font-size:13px;color:var(--coin-deep);font-weight:700;margin:-4px 0 0}
+.tag{display:inline-block;font-size:10px;font-weight:700;color:var(--coin-deep);background:var(--coin-soft);border-radius:6px;padding:0 5px;margin-left:4px;vertical-align:1px}
+.goal{background:var(--surface);border:1.5px solid var(--coin);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.goal-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.goal-top .k{font-size:13px;font-weight:700;color:var(--coin-deep)}
+.goal-top .btn{padding:4px 12px;font-size:12px}
+.goal-left{font-family:var(--font-display);font-weight:800;font-size:30px;line-height:1.15;color:var(--ink)}
+.goal-left small{font-size:15px;color:var(--muted);margin:0 4px}
+.goal-left.done{color:var(--teal)}
+.bar{height:12px;border-radius:999px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--coin),var(--coin-deep));transition:width .4s}
+@media (prefers-reduced-motion: reduce){.bar i{transition:none}}
+.goal-sub{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 14px}
+.goal-sub b{color:var(--ink)}
+.goal-count{font-size:14px;font-weight:700;color:var(--coin-deep)}
+.goal-count b{font-family:var(--font-display);font-size:20px}
+.goal-count.late{color:var(--danger)}
+.pace{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pace > div{background:var(--coin-soft);border-radius:12px;padding:8px 10px;min-width:0}
+.pace .k{font-size:11px;font-weight:700;color:var(--coin-deep)}
+.pace .v{font-family:var(--font-display);font-weight:800;font-size:17px;line-height:1.3;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.goal-grid input[type="date"]{-webkit-appearance:none;appearance:none;display:block;min-height:2.5em;text-align:left;max-width:100%}
+.goal-grid input::-webkit-date-and-time-value{text-align:left}
+.goal-grid > .field{min-width:0;overflow:hidden}
+.goal-form{display:flex;flex-direction:column;gap:10px}
+.goal-form > b{font-family:var(--font-display);font-size:16px}
+.goal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.goal-grid .wide{grid-column:1/-1}
+.goal-grid label{font-size:12px;font-weight:700;color:var(--muted)}
+.goal-grid input{font:inherit;font-weight:700;font-size:16px;padding:7px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box;font-variant-numeric:tabular-nums}
+.goal-grid input:focus{outline:none;border-color:var(--coin)}
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:var(--surface);color:var(--muted);font-weight:700;font-size:12px;padding:5px 10px}
+.seg button[aria-pressed="true"]{background:var(--teal);color:#fff}
+:root[data-theme="dark"] .seg button[aria-pressed="true"]{color:#0f1715}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .seg button[aria-pressed="true"]{color:#0f1715}}
+.cal{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 10px;display:flex;flex-direction:column;gap:10px}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:center}
+.cal-nav button{border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;width:36px;height:36px;font-size:18px;font-weight:700;flex:none}
+.cal-nav b{font-family:var(--font-display);font-size:17px}
+.cal-nav .s{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.cal-nav .s strong{color:var(--ink);font-size:18px;font-family:var(--font-display)}
+.ms-total{margin-top:2px}
+.ms-row{display:flex;justify-content:center;gap:4px 14px;flex-wrap:wrap;margin-top:4px}
+.ms-row span{display:flex;flex-direction:column;align-items:center;line-height:1.3}
+.ms-row b{color:var(--ink);font-size:13px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr)) minmax(0,1.15fr);gap:3px}
+.cal-h{font-size:11px;font-weight:700;color:var(--muted);text-align:center;padding:2px 0}
+.cal-h.sun{color:var(--danger)}
+.cal-h.sat{color:var(--teal)}
+.cal-d{border:1.5px solid transparent;border-radius:8px;padding:3px 2px 4px;min-height:42px;display:flex;flex-direction:column;justify-content:space-between;align-items:center;background:var(--bg);color:var(--ink);font:inherit;min-width:0;cursor:pointer}
+.cal-d .dn{font-size:11px;color:var(--muted);line-height:1.2}
+.cal-d .dv{font-size:10.5px;font-weight:700;line-height:1.2;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.cal-d.out{opacity:.4}
+.cal-d.today{border-color:var(--coin)}
+.cal-d.sel{border-color:var(--teal);border-width:2.5px}
+.cal-d.neg .dv{color:var(--danger)}
+.cal-w{border-radius:8px;background:color-mix(in srgb,var(--teal) 12%,var(--surface));display:flex;flex-direction:column;justify-content:center;align-items:center;padding:3px 2px;min-width:0}
+.cal-w .dn{font-size:10px;color:var(--teal);font-weight:700}
+.cal-w .dv{font-size:11px;font-weight:800;color:var(--teal);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.cal-detail{font-size:13px;background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:4px 14px;font-variant-numeric:tabular-nums}
+.cal-detail b{font-family:var(--font-display)}
+.cal-detail .t{width:100%;font-weight:700}
+.cal-detail .full{width:100%}
+.cal-detail .row{display:flex;flex-wrap:wrap;gap:2px 14px}
+.cal-detail .row > span{white-space:nowrap}
+.chart-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 12px 10px;margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.chart-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.chart-head .k{font-size:12px;font-weight:700;color:var(--muted)}
+.chart-wrap{width:100%}
+#chart{display:block;width:100%;height:auto;overflow:visible;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.chart-sub[hidden]{display:none}
+.chart-sub{display:flex;align-items:center;justify-content:flex-end;gap:8px;font-size:12px;color:var(--muted);font-weight:700}
+.chart-nav{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
+.chart-nav > button:not(.btn){border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;width:32px;height:28px;font-size:16px;font-weight:700;flex:none}
+.chart-nav > button:disabled{opacity:.35;cursor:default}
+.chart-nav .btn{padding:3px 10px;font-size:12px;margin-left:auto}
+#chart .grid{stroke:var(--line);stroke-width:1}
+#chart .zero{stroke:var(--muted);stroke-width:1}
+#chart .avg{stroke:var(--coin-deep);stroke-width:1.5;stroke-dasharray:4 3;fill:none}
+#chart .cbar{fill:var(--teal)}
+#chart .cbar.neg{fill:var(--danger)}
+#chart .cbar.today{fill:var(--coin)}
+#chart .cbar.sel{stroke:var(--ink);stroke-width:1.5}
+#chart .hit{fill:transparent;cursor:pointer}
+#chart text{fill:var(--muted);font-size:10px;font-family:var(--font-body);font-variant-numeric:tabular-nums}
+#chart text.avgl{fill:var(--coin-deep);font-weight:700}
+.chart-foot{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:2px 14px}
+.chart-foot b{color:var(--ink)}
+.toc{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.toc .toc-title{width:100%;margin:0 0 2px}
+.toc button{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:700}
+.toc button:active{background:var(--coin-soft)}
+#syncSec,#goal,#form,#secSummary,#secChart,#secCal,#secDays,#secCharas,#secHist,#backupSec{scroll-margin-top:12px}
+.to-top{position:fixed;right:calc(16px + env(safe-area-inset-right, 0px));bottom:calc(18px + env(safe-area-inset-bottom, 0px));z-index:20;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;width:52px;height:52px;border-radius:18px;
+  border:1px solid color-mix(in srgb,var(--teal) 30%,transparent);
+  background:color-mix(in srgb,var(--surface) 82%,transparent);-webkit-backdrop-filter:blur(12px) saturate(1.4);backdrop-filter:blur(12px) saturate(1.4);
+  color:var(--teal);box-shadow:0 1px 2px rgba(0,0,0,.08),0 8px 24px -6px color-mix(in srgb,var(--teal) 45%,transparent);
+  opacity:0;transform:translateY(12px) scale(.92);pointer-events:none;transition:opacity .22s ease,transform .22s ease}
+.to-top span{font-size:10px;font-weight:700;letter-spacing:.06em;margin-top:-2px}
+.to-top.show{opacity:1;transform:none;pointer-events:auto}
+.to-top:active{transform:scale(.94);background:color-mix(in srgb,var(--coin-soft) 85%,transparent)}
+@media (prefers-reduced-motion: reduce){.to-top{transition:none}}
+.sync-form{display:flex;flex-direction:column;gap:10px}
+.sync-form .field input{font:inherit;font-size:16px;padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box}
+.sync-form .field input:focus{outline:none;border-color:var(--coin)}
+.sync-form .field label{font-size:12px;font-weight:700;color:var(--muted)}
+.status.on{color:var(--teal);font-weight:700}
+.timer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted);font-weight:700}
+.timer b{font-family:var(--font-display);font-size:20px;color:var(--ink);font-variant-numeric:tabular-nums}
+.timer b.off{color:var(--muted);font-size:14px}
+.timer .btn{padding:4px 10px;font-size:12px}
+.timer-btns{margin-left:auto;display:flex;gap:6px}
+.timer b.paused{color:var(--coin-deep)}
+#pauseBtn[aria-pressed="true"]{border-color:var(--teal);color:var(--teal)}
+.banner{background:var(--coin-soft);border:1.5px solid var(--coin);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.banner p{margin:0;font-weight:700}
+.banner .row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:8px 14px;font-weight:700;font-size:14px}
+.btn.primary{background:var(--teal);border-color:var(--teal);color:#fff}
+:root[data-theme="dark"] .btn.primary{color:#0f1715}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#0f1715}}
+.backup{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.backup textarea{font:12px/1.4 ui-monospace,Menlo,monospace;width:100%;box-sizing:border-box;min-height:90px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);padding:8px;resize:vertical}
+.backup .msg{font-size:13px;color:var(--muted);margin:0}
+.backup .msg.ok{color:var(--teal);font-weight:700}
+.backup .msg.bad{color:var(--danger);font-weight:700}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1><span class="coin-dot" aria-hidden="true"></span>ツムツム コイン帳</h1>
+    <div class="status" id="syncStatus">この端末に保存中</div>
+  </header>
+
+  <nav class="toc" id="toc" aria-labelledby="tocTitle">
+    <h2 class="toc-title" id="tocTitle">目次</h2>
+    <button type="button" data-go="goal">BOX目標</button>
+    <button type="button" data-go="form">記録する</button>
+    <button type="button" data-go="secSummary">まとめ</button>
+    <button type="button" data-go="secChart">グラフ</button>
+    <button type="button" data-go="secCal">カレンダー</button>
+    <button type="button" data-go="secDays" data-open="daysToggle">日別</button>
+    <button type="button" data-go="secCharas" data-open="charasToggle">キャラ別</button>
+    <button type="button" data-go="secHist" data-open="histToggle">プレイ履歴</button>
+    <button type="button" data-go="syncSec">同期</button>
+    <button type="button" data-go="backupSec">バックアップ</button>
+  </nav>
+
+  <div class="col col-side">
+  <section class="goal" id="goal">
+    <div id="goalView" hidden>
+      <div class="goal-top"><span class="k">プレミアムBOX完売まで</span><button class="btn" id="goalEdit" type="button">設定</button></div>
+      <div class="goal-left num" id="goalLeft">—</div>
+      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="goalBarWrap"><i id="goalBar"></i></div>
+      <div class="goal-sub num" id="goalSub"></div>
+      <div id="goalPaceWrap" hidden>
+        <div class="goal-count num" id="goalCount"></div>
+        <div class="pace" style="margin-top:8px">
+          <div><div class="k">1日あたり</div><div class="v" id="paceDay">—</div></div>
+          <div><div class="k">1週間あたり</div><div class="v" id="paceWeek">—</div></div>
+          <div><div class="k">1か月あたり</div><div class="v" id="paceMonth">—</div></div>
+        </div>
+      </div>
+    </div>
+    <form class="goal-form" id="goalForm" novalidate>
+      <b>プレミアムBOXの目標（1回 30,000枚）</b>
+      <div class="goal-grid">
+        <div class="field"><label for="goalPulls">完売までの残り回数</label><input id="goalPulls" class="gnum" inputmode="numeric" autocomplete="off" placeholder="回"></div>
+        <div class="field"><label for="goalHeld">今の所持コイン</label><input id="goalHeld" class="gnum" inputmode="numeric" autocomplete="off" placeholder="枚"></div>
+        <div class="field wide"><label for="goalDate">完売したい日（なくてもOK）</label><input id="goalDate" type="date"></div>
+      </div>
+      <p class="err" id="goalErr" hidden></p>
+      <div class="ed-actions">
+        <button class="btn primary" type="submit">保存</button>
+        <button class="btn" id="goalCancel" type="button" hidden>やめる</button>
+      </div>
+      <p class="hint">保存した後に記録したプレイの純利益で、残りが自動で減ります。ギフトやミッション報酬など記録外でコインが増えたときや、ボックスを引いたときは、回数と所持コインを入れ直して保存してください。</p>
+    </form>
+  </section>
+
+  <div class="banner" id="banner" hidden>
+    <p id="bannerText"></p>
+    <div class="row">
+      <button class="btn primary" id="bannerGo" type="button">バックアップする</button>
+      <button class="btn" id="bannerLater" type="button">あとで</button>
+    </div>
+  </div>
+
+  <form class="entry" id="form" novalidate>
+    <div class="field chara-field">
+      <label for="chara">キャラ</label>
+      <input id="chara" autocomplete="off" maxlength="30" placeholder="キャラ名（初回だけ入力）">
+      <div class="chips" id="charaChips"></div>
+    </div>
+
+    <div class="items">
+      <div class="items-head">
+        <label for="cost">使ったアイテム代</label>
+        <div class="cost"><input id="cost" inputmode="numeric" autocomplete="off" value="0"><span>枚</span></div>
+      </div>
+      <div class="chips" id="chips">
+        <button class="chip item" type="button" data-k="score" data-c="500" aria-pressed="false">スコア<span>500</span></button>
+        <button class="chip item" type="button" data-k="coin" data-c="500" aria-pressed="false">コイン<span>500</span></button>
+        <button class="chip item" type="button" data-k="exp" data-c="500" aria-pressed="false">Exp<span>500</span></button>
+        <button class="chip item" type="button" data-k="time" data-c="1000" aria-pressed="false">タイム<span>1,000</span></button>
+        <button class="chip item" type="button" data-k="bomb" data-c="1500" aria-pressed="false">ボム<span>1,500</span></button>
+        <button class="chip item" type="button" data-k="54" data-c="1800" aria-pressed="false">5→4<span>1,800</span></button>
+        <button class="chip clear" type="button" data-k="clear">すべて解除</button>
+      </div>
+    </div>
+
+    <div class="timer"><span>このプレイの時間</span><b id="elapsed" class="off">—</b><span class="timer-btns"><button class="btn" id="pauseBtn" type="button" aria-pressed="false" hidden>止める</button><button class="btn" id="restart" type="button">今から計測</button></span></div>
+    <div class="fields">
+      <div class="field">
+        <label for="play">プレイ中のコイン</label>
+        <input id="play" inputmode="numeric" autocomplete="off" placeholder="例 12,000">
+      </div>
+      <div class="field">
+        <label for="res">リザルトのコイン</label>
+        <input id="res" inputmode="numeric" autocomplete="off" placeholder="例 15,600">
+      </div>
+    </div>
+
+    <div class="est-row"><label for="estMult">プレイ中を入れ忘れたときの倍率</label><span>×</span><input id="estMult" inputmode="decimal" autocomplete="off" placeholder="1.3"></div>
+    <p class="est-note" id="estNote" hidden></p>
+    <div class="result-row">
+      <div class="result">
+        <span class="lbl">コイン倍率</span>
+        <span class="mult num empty" id="mult"><small>×</small>—</span>
+      </div>
+      <div class="result netbox">
+        <span class="lbl">純利益</span>
+        <span class="net num empty" id="net">—</span>
+      </div>
+    </div>
+    <p class="err" id="err" hidden></p>
+    <button class="save" id="save" type="submit" disabled>記録する</button>
+  </form>
+  </div>
+
+  <div class="col col-main">
+  <section id="secSummary">
+    <div class="sec-head">
+      <h2>まとめ</h2>
+      <label for="filter" hidden>表示するキャラ</label>
+      <select id="filter"><option value="">すべてのキャラ</option></select>
+    </div>
+    <p class="filter-note" id="filterNote" hidden></p>
+    <div class="stats">
+      <div class="stat today">
+        <div class="today-pair">
+          <div><div class="k">今日かせいだコイン</div><div class="v num" id="sToday">0</div></div>
+          <div><div class="k">今日の純利益</div><div class="v num netv" id="sTodayNet">0</div></div>
+        </div>
+        <div class="s num" id="sTodaySub">0 プレイ</div>
+      </div>
+      <div class="stat"><div class="k">1プレイ平均</div><div class="v num" id="sAvg">—</div><div class="s">リザルト基準</div></div>
+      <div class="stat"><div class="k">1プレイ平均純利益</div><div class="v num" id="sAvgNet">—</div><div class="s">アイテム代を引いた額</div></div>
+      <div class="stat"><div class="k">トータル</div><div class="v num" id="sTotal">0</div><div class="s num" id="sTotalSub">0 プレイ</div></div>
+      <div class="stat"><div class="k">トータル純利益</div><div class="v num" id="sTotalNet">0</div><div class="s num" id="sCostSub">アイテム代 0</div></div>
+      <div class="stat"><div class="k">平均倍率</div><div class="v num" id="sMult">—</div><div class="s">全プレイ</div></div>
+      <div class="stat"><div class="k">今日の平均</div><div class="v num" id="sTodayAvg">—</div><div class="s">1プレイあたり</div></div>
+      <div class="stat"><div class="k">1時間あたり純利益</div><div class="v num" id="sHourly">—</div><div class="s">時間を測ったプレイ</div></div>
+      <div class="stat"><div class="k">1プレイ平均時間</div><div class="v num" id="sAvgDur">—</div><div class="s num" id="sDurN">計測 0 回</div></div>
+      <div class="stat"><div class="k">今日のプレイ時間</div><div class="v num" id="sTodayDur">—</div><div class="s">合計</div></div>
+      <div class="stat"><div class="k">トータルプレイ時間</div><div class="v num" id="sTotalDur">—</div><div class="s">合計</div></div>
+    </div>
+    <div class="chart-card" id="secChart">
+      <div class="chart-head">
+        <span class="k" id="chartTitle">日ごとの純利益</span>
+        <div class="seg" id="chartUnit" role="group" aria-label="単位">
+          <button type="button" data-u="day" aria-pressed="true">日</button>
+          <button type="button" data-u="week" aria-pressed="false">週</button>
+          <button type="button" data-u="month" aria-pressed="false">月</button>
+          <button type="button" data-u="year" aria-pressed="false">年</button>
+        </div>
+      </div>
+      <div class="chart-sub" id="chartRangeRow">
+        <span>表示する日数</span>
+        <div class="seg" id="chartRange" role="group" aria-label="日数">
+          <button type="button" data-r="7" aria-pressed="false">7日</button>
+          <button type="button" data-r="14" aria-pressed="true">14日</button>
+          <button type="button" data-r="30" aria-pressed="false">30日</button>
+        </div>
+      </div>
+      <div class="chart-nav">
+        <button type="button" id="chartPrev" aria-label="前の期間へ">‹</button>
+        <span class="num" id="chartPeriod"></span>
+        <button type="button" id="chartNext" aria-label="後の期間へ">›</button>
+        <button type="button" class="btn" id="chartToday" hidden>今日へ</button>
+      </div>
+      <div class="chart-wrap"><svg id="chart" viewBox="0 0 360 180" role="img" aria-label="日ごとの純利益の棒グラフ"></svg></div>
+      <div class="chart-foot num" id="chartFoot"></div>
+    </div>
+  </section>
+
+  <section id="secCal">
+    <div class="sec-head">
+      <h2>カレンダー</h2>
+      <div class="seg" id="calMode" role="group" aria-label="表示する値">
+        <button type="button" data-m="earn" aria-pressed="false">獲得</button>
+        <button type="button" data-m="net" aria-pressed="true">純利益</button>
+      </div>
+    </div>
+    <div class="cal">
+      <div class="cal-nav">
+        <button type="button" id="calPrev" aria-label="前の月">‹</button>
+        <div><b id="calTitle"></b><div class="s" id="calMonthSum"></div></div>
+        <button type="button" id="calNext" aria-label="次の月">›</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-detail" id="calDetail"></div>
+    </div>
+  </section>
+
+  <section id="secDays">
+    <button class="hist-toggle" id="daysToggle" type="button" aria-expanded="false" aria-controls="daysBody"><span class="chev" aria-hidden="true">▸</span><span>日別</span><span class="hist-count" id="daysCount"></span><span class="hist-hint">タップで表示</span></button>
+    <div id="daysBody" hidden>
+      <div class="list" id="days"></div>
+    </div>
+  </section>
+
+  <section id="secCharas">
+    <button class="hist-toggle" id="charasToggle" type="button" aria-expanded="false" aria-controls="charasBody"><span class="chev" aria-hidden="true">▸</span><span>キャラ別</span><span class="hist-count" id="charasCount"></span><span class="hist-hint">タップで表示</span></button>
+    <div id="charasBody" hidden>
+      <div class="list" id="charas"></div>
+    </div>
+  </section>
+
+  <section id="secHist">
+    <button class="hist-toggle" id="histToggle" type="button" aria-expanded="false" aria-controls="histBody"><span class="chev" aria-hidden="true">▸</span><span>プレイ履歴</span><span class="hist-count" id="histCount"></span><span class="hist-hint">タップで表示</span></button>
+    <div id="histBody" hidden>
+    <div class="hist-tools"><button class="btn" id="selToggle" type="button">まとめて選択</button></div>
+    <div class="bulk" id="bulk" hidden>
+      <div class="ed-head"><b id="bulkCount">0件選択中</b><button class="btn" id="bulkAll" type="button">表示中をすべて選択</button></div>
+      <p class="msg">変えたい項目だけ入力してください。空欄の項目は変更しません。</p>
+      <div class="field"><label for="bulkChara">キャラ名</label><input id="bulkChara" maxlength="30" autocomplete="off" placeholder="変更しない"><div class="chips" id="bulkChips"></div></div>
+      <div class="field"><label for="bulkCost">アイテム代</label><input id="bulkCost" inputmode="numeric" autocomplete="off" placeholder="変更しない"><div class="chips" id="bulkItems"></div></div>
+      <p class="err" id="bulkErr" hidden></p>
+      <div class="ed-actions">
+        <button class="btn primary" id="bulkApply" type="button">まとめて変更</button>
+        <button class="btn" id="bulkCancel" type="button">やめる</button>
+      </div>
+      <p class="msg">履歴の行をタップすると選択／解除できます。</p>
+    </div>
+    <div class="editor" id="editor" hidden>
+      <div class="ed-head"><b>記録を編集</b><span class="msg" id="edInfo"></span></div>
+      <div class="ed-grid">
+        <div class="field wide"><label for="edChara">キャラ</label><input id="edChara" maxlength="30" autocomplete="off" placeholder="未設定"><div class="chips" id="edCharaChips"></div></div>
+        <div class="field wide"><label for="edAt">日時</label><input id="edAt" type="datetime-local"></div>
+        <div class="field"><label for="edPlay">プレイ中のコイン</label><input id="edPlay" class="numin" inputmode="numeric" autocomplete="off"></div>
+        <div class="field"><label for="edRes">リザルトのコイン</label><input id="edRes" class="numin" inputmode="numeric" autocomplete="off"></div>
+        <div class="field wide"><label for="edMult">倍率 ×（変えるとプレイ中のコインを自動で計算）</label><input id="edMult" inputmode="decimal" autocomplete="off"></div>
+        <div class="field wide"><label for="edCost">アイテム代</label><input id="edCost" inputmode="numeric" autocomplete="off"><div class="chips" id="edItems"></div></div>
+        <div class="field"><label for="edDur">時間（分:秒）</label><input id="edDur" inputmode="numeric" autocomplete="off" placeholder="例 1:25（空欄でなし）"></div>
+      </div>
+      <p class="err" id="edErr" hidden></p>
+      <div class="ed-actions">
+        <button class="btn primary" id="edSave" type="button">保存</button>
+        <button class="btn" id="edCancel" type="button">やめる</button>
+        <button class="del" id="edDel" type="button">この記録を削除</button>
+      </div>
+    </div>
+    <div class="hist-nav">
+      <button type="button" id="histPrev" aria-label="前の日">‹</button>
+      <div><b id="histDayLabel">—</b><div class="s" id="histDaySub"></div></div>
+      <button type="button" id="histNext" aria-label="次の日">›</button>
+    </div>
+    <div class="list" id="plays"></div>
+    <button class="more" id="more" type="button" hidden>もっと見る</button>
+    </div>
+  </section>
+
+  <section id="syncSec">
+    <h2>同期</h2>
+    <div class="backup sync">
+      <div id="syncOff" hidden>
+        <p class="msg">同期の設定（Firebase）がまだ入っていません。設定が入るまでは、この端末だけに保存します。</p>
+      </div>
+      <form id="loginForm" class="sync-form" novalidate hidden>
+        <p class="msg">メールアドレスとパスワードでログインすると、iPhone・iPad・PCで記録が自動で同期されます。どの端末でも同じメールアドレスとパスワードでログインしてください。</p>
+        <div class="field"><label for="syncEmail">メールアドレス</label><input id="syncEmail" type="email" autocomplete="username" inputmode="email"></div>
+        <div class="field"><label for="syncPass">パスワード（6文字以上）</label><input id="syncPass" type="password" autocomplete="current-password"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary" id="loginBtn" type="submit">ログイン</button>
+          <button class="btn" id="signupBtn" type="button">はじめて使う（新規登録）</button>
+        </div>
+        <p class="msg" id="syncMsg" aria-live="polite"></p>
+      </form>
+      <div id="syncOn" hidden>
+        <p class="msg ok" id="syncWho"></p>
+        <p class="msg">記録・編集・削除と、BOXの目標は自動で同期されます。電波がないときに記録した分は、つながったときに送られます。</p>
+        <div><button class="btn" id="logoutBtn" type="button">ログアウト</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="backupSec">
+    <h2>バックアップ</h2>
+    <div class="backup">
+      <p class="msg">記録をファイルにして保存します。iPhoneでは保存の画面で「"ファイル"に保存」を選ぶと、好きなフォルダに保存できます。iPhoneの「ファイル」アプリ（iCloud Drive など）に保存しておけば、別の端末や機種変更後も読み込めます。読み込んでも同じ記録は二重になりません。</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn primary" id="saveFileBtn" type="button">ファイルに保存</button>
+        <label class="btn" for="loadFile" style="cursor:pointer">ファイルから読み込み</label>
+        <input id="loadFile" type="file" accept=".json,application/json,text/plain" hidden>
+      </div>
+      <p class="msg" id="ioMsg" aria-live="polite"></p>
+      <details id="textBackup">
+        <summary class="msg" style="cursor:pointer">ファイルが使えないとき（文字でコピー）</summary>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn" id="exportBtn" type="button">文字でコピー</button>
+            <button class="btn" id="importBtn" type="button">貼った文字から読み込み</button>
+          </div>
+          <label for="io" class="msg">バックアップの文字</label>
+          <textarea id="io" spellcheck="false" placeholder="ここに書き出し結果が出ます／読み込む文字を貼り付けます"></textarea>
+        </div>
+      </details>
+    </div>
+  </section>
+  </div>
+</div>
+
+<button type="button" class="to-top" id="toTop" aria-label="一番上（目次）に戻る" tabindex="-1"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 14.5 12 8.5l6 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>目次</span></button>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString('ja-JP');
+  const sfmt = n => (n < 0 ? '−' : '') + fmt(Math.abs(n));
+  const toInt = s => { const d = String(s).replace(/[^\d]/g,''); return d ? parseInt(d,10) : NaN; };
+  const pad = n => String(n).padStart(2,'0');
+  const dayKey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const dayLabel = k => { const [y,m,d] = k.split('-').map(Number); const w='日月火水木金土'[new Date(y,m-1,d).getDay()]; return `${m}/${d}（${w}）`; };
+  const timeLabel = iso => { const d = new Date(iso); return `${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const costOf = x => typeof x.cost === 'number' ? x.cost : 0;
+  const hasDur = x => typeof x.dur === 'number' && x.dur > 0;
+  const mmss = s => `${Math.floor(s/60)}:${pad(Math.floor(s%60))}`;
+  const hm = s => { const h = Math.floor(s/3600), m = Math.floor(s%3600/60); return h ? `${h}時間${m}分` : `${m}分${pad(Math.floor(s%60))}秒`; };
+  const MAX_DUR = 1800; // 30 minutes
+  const NONE = '未設定';
+  const charaOf = x => (typeof x.chara === 'string' && x.chara) ? x.chara : NONE;
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  const LS = 'tsum-coin-plays', LS_MARK = 'tsum-coin-backup-mark', LS_COST = 'tsum-coin-last-cost', LS_START = 'tsum-coin-start', LS_CHARA = 'tsum-coin-last-chara', LS_FILTER = 'tsum-coin-filter';
+  const STEP = 300000;
+  const lsGet = k => { try { return localStorage.getItem(k); } catch(_) { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch(_){} if (k === 'tsum-coin-goal' && window.__pushGoal) window.__pushGoal(v); };
+
+  let plays = [];
+  try { plays = JSON.parse(lsGet(LS) || '[]'); if (!Array.isArray(plays)) plays = []; } catch(_) { plays = []; }
+  const save = () => { lsSet(LS, JSON.stringify(plays)); if (window.__pushPlays) window.__pushPlays(); };
+  let showN = 30;
+  let editingId = null;
+  let chartPlays = [];
+  let histDay = '';
+  let goalReady = false;
+  let selectMode = false, selected = new Set(), shownIds = [];
+  let mark = parseInt(lsGet(LS_MARK) || '0', 10) || 0;   // # of 300k steps already acknowledged
+
+  /* ---- input ---- */
+  const playIn = $('play'), resIn = $('res'), costIn = $('cost');
+  const charaIn = $('chara');
+  charaIn.value = lsGet(LS_CHARA) || '';
+  let filter = lsGet(LS_FILTER) || '';
+  charaIn.addEventListener('input', () => { markChips(); updatePreview(); });
+  charaIn.addEventListener('change', () => lsSet(LS_CHARA, charaIn.value.trim()));
+  $('charaChips').addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    charaIn.value = b.dataset.n; lsSet(LS_CHARA, b.dataset.n); markChips(); updatePreview();
+  });
+  function markChips(){
+    const v = charaIn.value.trim();
+    document.querySelectorAll('#charaChips .chip').forEach(c => c.classList.toggle('on', c.dataset.n === v));
+    const bv = $('bulkChara').value.trim();
+    document.querySelectorAll('#bulkChips .chip').forEach(c => c.classList.toggle('on', c.dataset.n === bv));
+    const ev = $('edChara').value.trim();
+    document.querySelectorAll('#edCharaChips .chip').forEach(c => c.classList.toggle('on', c.dataset.n === ev));
+  }
+  $('edCharaChips').addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    $('edChara').value = b.dataset.n; markChips();
+  });
+  $('edChara').addEventListener('input', markChips);
+  $('filter').addEventListener('change', e => { filter = e.target.value; lsSet(LS_FILTER, filter); showN = 30; render(); });
+  const lastCost = toInt(lsGet(LS_COST) || '0');
+  costIn.value = isNaN(lastCost) ? '0' : lastCost.toLocaleString('ja-JP');
+
+  /* ---- play coins from result ÷ the multiplier the player reads off ---- */
+  const estIn = $('estMult');
+  const toMult = s => {
+    const t = String(s).trim().replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[．。]/g, '.').replace(/[^\d.]/g, '');
+    const v = parseFloat(t); return v > 0 ? v : NaN;
+  };
+  estIn.addEventListener('input', () => updatePreview());
+  function current(){
+    let p = toInt(playIn.value);
+    const r = toInt(resIn.value);
+    let c = toInt(costIn.value); if (isNaN(c)) c = 0;
+    let est = null;
+    if (!(p > 0) && r > 0){
+      const m = toMult(estIn.value);
+      if (m >= 1){ est = {mult: m}; p = Math.round(r / m); }
+    }
+    return {p, r, c, est, ok: p > 0 && r > 0};
+  }
+  function updatePreview(){
+    const {p, r, c, ok, est} = current();
+    const m = $('mult'), n = $('net');
+    if (ok && !est){ m.innerHTML = '<small>×</small>' + (r/p).toFixed(1); m.classList.remove('empty'); }
+    else if (est){ m.innerHTML = '<small>×</small>' + est.mult.toFixed(1); m.classList.add('empty'); }
+    else { m.innerHTML = '<small>×</small>—'; m.classList.add('empty'); }
+    const r0 = toInt(resIn.value), p0 = toInt(playIn.value), em = toMult(estIn.value);
+    let note = '';
+    if (est) note = `プレイ中は「約${fmt(p)}枚」（${fmt(r0)} ÷ ${est.mult}）として記録します` + ((p < 10000 || p > 15000) ? '。いつもの範囲（10,000〜15,000）から外れています。倍率を確認してください' : '');
+    else if (r0 > 0 && !(p0 > 0)) note = isNaN(em) ? 'プレイ中のコインか、上の倍率を入れてください' : '倍率は1.0以上で入れてください';
+    $('estNote').hidden = !note;
+    $('estNote').textContent = note;
+    $('save').textContent = est ? '倍率から計算して記録' : '記録する';
+    if (r > 0){ const v = r - c; n.textContent = sfmt(v); n.classList.remove('empty'); n.classList.toggle('neg', v < 0); }
+    else { n.textContent = '—'; n.classList.add('empty'); n.classList.remove('neg'); }
+    $('save').disabled = !ok;
+    $('err').hidden = true;
+  }
+  function reformat(e){
+    const v = toInt(e.target.value);
+    e.target.value = isNaN(v) ? '' : v.toLocaleString('ja-JP');
+    updatePreview();
+  }
+  [playIn, resIn, costIn].forEach(el => el.addEventListener('input', reformat));
+  costIn.addEventListener('change', () => { const v = toInt(costIn.value); lsSet(LS_COST, String(isNaN(v) ? 0 : v)); });
+
+  /* items: each can be used once per play, so chips toggle */
+  const LS_ITEMS = 'tsum-coin-items';
+  let items = new Set();
+  try { const a = JSON.parse(lsGet(LS_ITEMS) || '[]'); if (Array.isArray(a)) items = new Set(a); } catch(_) {}
+  function syncItems(setCost){
+    let c = 0;
+    document.querySelectorAll('#chips .chip.item').forEach(b => {
+      const on = items.has(b.dataset.k);
+      b.classList.toggle('picked', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if (on) c += parseInt(b.dataset.c, 10);
+    });
+    lsSet(LS_ITEMS, JSON.stringify([...items]));
+    if (setCost){ costIn.value = c.toLocaleString('ja-JP'); lsSet(LS_COST, String(c)); updatePreview(); }
+  }
+  $('chips').addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    const k = b.dataset.k;
+    if (k === 'clear') items.clear();
+    else if (items.has(k)) items.delete(k); else items.add(k);
+    syncItems(true);
+  });
+  // typing a cost by hand overrides the item picks
+  costIn.addEventListener('input', () => { if (items.size){ items.clear(); syncItems(false); } });
+  syncItems(items.size > 0);
+
+  /* item picker for the editors (same items as the entry form) */
+  const ITEM_DEFS = [...document.querySelectorAll('#chips .chip.item')].map(b => ({k: b.dataset.k, c: parseInt(b.dataset.c, 10), html: b.innerHTML}));
+  const itemCost = set => ITEM_DEFS.reduce((s, d) => set.has(d.k) ? s + d.c : s, 0);
+  function makePicker(boxId, inputId, extra){
+    const box = $(boxId), input = $(inputId);
+    const st = {set: new Set(), used: false};
+    box.innerHTML = ITEM_DEFS.map(d => `<button class="chip item" type="button" data-k="${d.k}" aria-pressed="false">${d.html}</button>`).join('')
+      + `<button class="chip clear" type="button" data-k="none">${extra}</button>`;
+    st.paint = () => box.querySelectorAll('.chip.item').forEach(b => { const on = st.set.has(b.dataset.k); b.classList.toggle('picked', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    st.reset = (keys, cost) => { st.set = new Set(keys || []); st.used = false; input.value = cost == null ? '' : fmt(cost); st.paint(); };
+    box.addEventListener('click', e => {
+      const b = e.target.closest('.chip'); if (!b) return;
+      const k = b.dataset.k;
+      if (k === 'none') st.set.clear(); else if (st.set.has(k)) st.set.delete(k); else st.set.add(k);
+      st.used = true; input.value = fmt(itemCost(st.set)); st.paint();
+    });
+    input.addEventListener('input', () => { const v = toInt(input.value); input.value = isNaN(v) ? '' : v.toLocaleString('ja-JP'); st.set.clear(); st.used = false; st.paint(); });
+    return st;
+  }
+  const edPick = makePicker('edItems', 'edCost', 'アイテムなし');
+  const bulkPick = makePicker('bulkItems', 'bulkCost', 'アイテムなし');
+
+  /* ---- play timer: from the latest record (or a manual restart) ---- */
+  function startTime(){
+    let t = 0;
+    for (const x of plays){ const v = Date.parse(x.at); if (v > t) t = v; }
+    const r = parseInt(lsGet(LS_START) || '0', 10) || 0;
+    return Math.max(t, r);
+  }
+  const LS_STOP = 'tsum-coin-stop';
+  const stopAt = () => { const v = parseInt(lsGet(LS_STOP) || '0', 10) || 0; return v > startTime() ? v : 0; };
+  function elapsedSec(){ const s = startTime(); if (!s) return NaN; return ((stopAt() || Date.now()) - s) / 1000; }
+  function tick(){
+    const el = $('elapsed'), s = elapsedSec(), stopped = !!stopAt();
+    const btn = $('pauseBtn');
+    btn.textContent = stopped ? '再開' : '止める';
+    btn.setAttribute('aria-pressed', stopped ? 'true' : 'false');
+    btn.hidden = !(s >= 0) || (!stopped && s > MAX_DUR);
+    if (!(s >= 0)){ el.textContent = '「記録する」から計測開始'; el.className = 'off'; }
+    else if (s > MAX_DUR){ el.textContent = '休憩中（記録しない）'; el.className = 'off'; }
+    else { el.textContent = mmss(s) + (stopped ? '（停止中）' : ''); el.className = stopped ? 'paused' : ''; }
+  }
+  setInterval(tick, 1000);
+  $('restart').addEventListener('click', () => { lsSet(LS_START, String(Date.now())); lsSet(LS_STOP, '0'); tick(); });
+  $('pauseBtn').addEventListener('click', () => {
+    const st = stopAt();
+    if (st){ // resume: shift the start forward by the paused time
+      const el = (st - startTime());
+      lsSet(LS_START, String(Date.now() - el)); lsSet(LS_STOP, '0');
+    } else {
+      lsSet(LS_STOP, String(Date.now()));
+    }
+    tick();
+  });
+
+  $('form').addEventListener('submit', e => {
+    e.preventDefault();
+    const {p, r, c, ok, est} = current();
+    if (!ok) return;
+    const now = new Date();
+    const es = elapsedSec();
+    const rec = {id: 'p' + now.getTime().toString(36) + Math.random().toString(36).slice(2,6), play:p, result:r, cost:c, at: now.toISOString(), day: dayKey(now)};
+    if (est) rec.est = true;
+    if (items.size && c === itemCost(items)) rec.items = [...items];
+    if (es > 0 && es <= MAX_DUR) rec.dur = Math.round(es);
+    const ch = charaIn.value.trim();
+    if (ch) rec.chara = ch;
+    lsSet(LS_CHARA, ch);
+    lsSet(LS_STOP, '0');
+    plays.push(rec);
+    tick();
+    save();
+    lsSet(LS_COST, String(c));
+    playIn.value = ''; resIn.value = ''; estIn.value = '';
+    updatePreview(); render();
+    playIn.focus();
+  });
+
+  /* ---- render ---- */
+  function render(){
+    const all = plays.slice().sort((a,b) => b.at < a.at ? -1 : 1);
+    const today = dayKey(new Date());
+    const sum = (arr, f) => arr.reduce((s,x) => s + f(x), 0);
+
+    // characters, most recently used first
+    const charaStats = new Map();
+    for (const x of all){
+      const k = charaOf(x);
+      const c = charaStats.get(k) || {n:0, sum:0, play:0, cost:0, dur:0, durNet:0};
+      c.n++; c.sum += x.result; c.cost += costOf(x); c.play += x.play; c.mres = (c.mres || 0) + x.result;
+      if (hasDur(x)){ c.dur += x.dur; c.durNet += x.result - costOf(x); }
+      charaStats.set(k, c);
+    }
+    if (filter && !charaStats.has(filter)){ filter = ''; lsSet(LS_FILTER, ''); }
+    const names = [...charaStats.keys()];
+    $('charaChips').innerHTML = names.filter(n => n !== NONE).slice(0, 12).map(n => `<button class="chip" type="button" data-n="${esc(n)}">${esc(n)}</button>`).join('');
+    $('edCharaChips').innerHTML = names.filter(n => n !== NONE).map(n => `<button class="chip" type="button" data-n="${esc(n)}">${esc(n)}</button>`).join('');
+    $('bulkChips').innerHTML = $('edCharaChips').innerHTML + `<button class="chip clear" type="button" data-n="${NONE}">未設定にする</button>`;
+    markChips();
+    $('filter').innerHTML = '<option value="">すべてのキャラ</option>' + names.map(n => `<option value="${esc(n)}"${n===filter?' selected':''}>${esc(n)}</option>`).join('');
+    $('filterNote').hidden = !filter;
+    $('filterNote').textContent = filter ? `「${filter}」だけを表示中（まとめ・日別・履歴）` : '';
+
+    $('charasCount').textContent = `${charaStats.size}キャラ`;
+    if (!charaStats.size){
+      $('charas').innerHTML = '<div class="empty-note">キャラを入れて記録すると、キャラごとの成績をここで比べられます</div>';
+    } else {
+      const rows = [...charaStats.entries()].sort((a,b) => b[1].n - a[1].n);
+      let h = '<table><thead><tr><th>キャラ</th><th>回数</th><th>平均</th><th>倍率</th><th>平均純利益</th><th>1時間あたり</th></tr></thead><tbody>';
+      for (const [k,c] of rows){
+        const avgNet = (c.sum - c.cost) / c.n;
+        h += `<tr${k===filter?' class="sel"':''}><td><button class="cname" type="button" data-n="${esc(k)}">${esc(k)}</button></td><td>${c.n}</td><td>${fmt(c.sum/c.n)}</td><td class="x">${c.play ? '×' + (c.mres/c.play).toFixed(2) : '—'}</td><td class="n${avgNet<0?' neg':''}">${sfmt(avgNet)}</td><td>${c.dur ? sfmt(c.durNet / c.dur * 3600) : '—'}</td></tr>`;
+      }
+      $('charas').innerHTML = h + '</tbody></table>';
+    }
+
+    const sorted = filter ? all.filter(x => charaOf(x) === filter) : all;
+    const total = sum(sorted, x => x.result);
+    const realPlays = sorted;
+    const totalPlay = sum(realPlays, x => x.play), multRes = sum(realPlays, x => x.result);
+    const totalCost = sum(sorted, costOf);
+    const t = sorted.filter(x => x.day === today);
+    const tTotal = sum(t, x => x.result), tNet = tTotal - sum(t, costOf);
+
+    $('sToday').textContent = fmt(tTotal);
+    $('sTodayNet').textContent = sfmt(tNet);
+    $('sTodaySub').textContent = `${t.length} プレイ`;
+    $('sTodayAvg').textContent = t.length ? fmt(tTotal / t.length) : '—';
+    $('sTotal').textContent = fmt(total);
+    $('sTotalSub').textContent = `${sorted.length} プレイ`;
+    $('sTotalNet').textContent = sfmt(total - totalCost);
+    $('sCostSub').textContent = `アイテム代 ${fmt(totalCost)}`;
+    $('sAvg').textContent = sorted.length ? fmt(total / sorted.length) : '—';
+    $('sAvgNet').textContent = sorted.length ? sfmt((total - totalCost) / sorted.length) : '—';
+    $('sMult').textContent = totalPlay ? '×' + (multRes / totalPlay).toFixed(2) : '—';
+    const timed = sorted.filter(hasDur);
+    const durSum = sum(timed, x => x.dur);
+    const tDur = sum(t.filter(hasDur), x => x.dur);
+    $('sHourly').textContent = durSum ? sfmt(sum(timed, x => x.result - costOf(x)) / durSum * 3600) : '—';
+    $('sAvgDur').textContent = timed.length ? mmss(durSum / timed.length) : '—';
+    $('sDurN').textContent = `計測 ${timed.length} 回`;
+    $('sTodayDur').textContent = tDur ? hm(tDur) : '—';
+    $('sTotalDur').textContent = durSum ? hm(durSum) : '—';
+    chartPlays = sorted; if (goalReady) renderChart();
+
+
+    $('histCount').textContent = `全${sorted.length}件`;
+    // history: one day per sheet
+    const histDays = [...new Set(sorted.map(x => x.day))];   // newest first
+    if (!histDays.includes(histDay)) histDay = histDays[0] || '';
+    const hi = histDays.indexOf(histDay);
+    $('histPrev').disabled = hi < 0 || hi >= histDays.length - 1;   // older
+    $('histNext').disabled = hi <= 0;                                // newer
+    if (!sorted.length){
+      $('histDayLabel').textContent = '—'; $('histDaySub').textContent = '';
+      $('plays').innerHTML = '<div class="empty-note">まだ記録がありません。上にコイン枚数を入れて「記録する」を押してください。</div>';
+      $('more').hidden = true; shownIds = [];
+    } else {
+      const no = new Map(); all.forEach((x, i) => no.set(x.id, all.length - i));
+      const dayOrder = all.filter(x => x.day === histDay).slice().reverse();   // oldest first, all characters
+      const dno = new Map(); dayOrder.forEach((x, i) => dno.set(x.id, i + 1));
+      const rows = sorted.filter(x => x.day === histDay);
+      $('histDayLabel').textContent = dayLabel(histDay) + (histDay === today ? ' 今日' : '');
+      $('histDaySub').textContent = `${rows.length}件・純利益 ${sfmt(sum(rows, x => x.result - costOf(x)))}`;
+      let h = '<table' + (selectMode ? ' class="selecting"' : '') + '><thead><tr><th>回</th><th>通算</th>' + (selectMode ? '<th></th>' : '') + '<th>時刻</th><th>キャラ</th><th>プレイ中</th><th>リザルト</th><th>倍率</th><th>アイテム</th><th>純利益</th><th>時間</th><th></th></tr></thead><tbody>';
+      for (const x of rows.slice(0, showN)){
+        const net = x.result - costOf(x);
+        const d = new Date(x.at);
+        h += `<tr${(x.id===editingId || selected.has(x.id))?' class="sel"':''} data-id="${x.id}"><td class="pno day">${dno.get(x.id)}</td><td class="pno">${no.get(x.id)}</td>${selectMode ? `<td><input type="checkbox" class="pick" data-id="${x.id}"${selected.has(x.id)?' checked':''} aria-label="選択"></td>` : ''}<td>${pad(d.getHours())}:${pad(d.getMinutes())}</td><td>${esc(charaOf(x))}</td><td>${x.est ? `約${fmt(x.play)}<span class="tag">推定</span>` : fmt(x.play)}</td><td>${fmt(x.result)}</td><td class="x">×${(x.result/x.play).toFixed(1)}${x.est ? '<span class="tag">推定</span>' : ''}</td><td>${fmt(costOf(x))}</td><td class="n${net<0?' neg':''}">${sfmt(net)}</td><td>${hasDur(x) ? mmss(x.dur) : '—'}</td><td>${selectMode ? '' : `<button class="edit" type="button" data-id="${x.id}">編集</button>`}</td></tr>`;
+      }
+      $('plays').innerHTML = h + '</tbody></table>';
+      $('more').hidden = rows.length <= showN;
+      shownIds = rows.slice(0, showN).map(x => x.id);
+      window.__histDays = histDays;
+    }
+
+    // backup reminder every 300,000 earned
+    const steps = Math.max(0, Math.floor(sum(all, x => x.result - costOf(x)) / STEP));
+    if (steps < mark){ mark = steps; lsSet(LS_MARK, String(mark)); }
+    if (steps > mark){
+      $('bannerText').textContent = `トータル純利益が ${fmt(steps * STEP)} 枚を突破しました。記録をバックアップしておきましょう。`;
+      $('banner').hidden = false;
+    } else $('banner').hidden = true;
+    if (typeof renderGoal === 'function' && goalReady) renderGoal();
+    if (goalReady) renderCalendar(sorted);
+  }
+  $('more').addEventListener('click', () => { showN += 30; render(); });
+  function setHist(open){
+    $('histBody').hidden = !open;
+    $('histToggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  $('histToggle').addEventListener('click', () => setHist($('histBody').hidden));
+  function moveHist(step){   // step +1 = older, -1 = newer
+    const days = window.__histDays || [];
+    const i = days.indexOf(histDay) + step;
+    if (i >= 0 && i < days.length){ histDay = days[i]; showN = 30; render(); }
+  }
+  $('histPrev').addEventListener('click', () => moveHist(1));
+  $('histNext').addEventListener('click', () => moveHist(-1));
+
+  /* ---- calendar: day / week / month totals ---- */
+  const LS_CALMODE = 'tsum-coin-calmode';
+  let calMode = lsGet(LS_CALMODE) === 'earn' ? 'earn' : 'net';
+  const nowD = new Date();
+  let calY = nowD.getFullYear(), calM = nowD.getMonth();
+  let calSel = dayKey(nowD);
+  let calPlays = [];
+  const compact = v => { const a = Math.abs(v), s = v < 0 ? '−' : ''; if (a >= 10000){ const m = a / 10000; return s + (m >= 100 ? Math.round(m) : m.toFixed(1).replace(/\.0$/, '')) + '万'; } return s + fmt(a); };
+  function dayAgg(list){
+    const m = new Map();
+    for (const x of list){ const d = m.get(x.day) || {n:0, earn:0, cost:0, dur:0, play:0}; d.n++; d.earn += x.result; d.play += x.play; d.cost += costOf(x); if (hasDur(x)) d.dur += x.dur; m.set(x.day, d); }
+    return m;
+  }
+  const valOf = d => d ? (calMode === 'net' ? d.earn - d.cost : d.earn) : 0;
+  /* ---- net profit bar chart: day / week / month / year ---- */
+  const LS_RANGE = 'tsum-coin-chart-range', LS_UNIT = 'tsum-coin-chart-unit';
+  let chartRange = [7,14,30].includes(+lsGet(LS_RANGE)) ? +lsGet(LS_RANGE) : 14;
+  let chartUnit = ['day','week','month','year'].includes(lsGet(LS_UNIT)) ? lsGet(LS_UNIT) : 'day';
+  let chartSel = '';
+  let chartOff = 0;   // buckets between the current one and the right edge
+  const UNIT = {
+    day:   {name: '日', count: () => chartRange},
+    week:  {name: '週', count: () => 8},
+    month: {name: '月', count: () => 12},
+    year:  {name: '年', count: () => 5},
+  };
+  // start date of the bucket `back` units before the current one
+  function bucketStart(unit, back){
+    const n = new Date(), y = n.getFullYear(), m = n.getMonth(), d = n.getDate();
+    if (unit === 'day') return new Date(y, m, d - back);
+    if (unit === 'week') return new Date(y, m, d - n.getDay() - back * 7);   // weeks start on Sunday, like the calendar
+    if (unit === 'month') return new Date(y, m - back, 1);
+    return new Date(y - back, 0, 1);
+  }
+  function bucketEnd(unit, start){   // last day in the bucket
+    const y = start.getFullYear(), m = start.getMonth(), d = start.getDate();
+    if (unit === 'day') return start;
+    if (unit === 'week') return new Date(y, m, d + 6);
+    if (unit === 'month') return new Date(y, m + 1, 0);
+    return new Date(y, 11, 31);
+  }
+  function bucketKey(unit, dayStr){
+    const [y, m, d] = dayStr.split('-').map(Number);
+    if (unit === 'day') return dayStr;
+    if (unit === 'week'){ const dt = new Date(y, m - 1, d); return dayKey(new Date(y, m - 1, d - dt.getDay())); }
+    if (unit === 'month') return `${y}-${pad(m)}`;
+    return String(y);
+  }
+  const startKey = (unit, dt) => unit === 'day' || unit === 'week' ? dayKey(dt) : unit === 'month' ? `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}` : String(dt.getFullYear());
+  const md = dt => `${dt.getMonth() + 1}/${dt.getDate()}`;
+  function bucketLabel(unit, b, i, count){
+    const dt = b.start;
+    if (unit === 'day') return b.back === 0 ? '今日' : (dt.getDate() === 1 || i === 0 ? md(dt) : String(dt.getDate()));
+    if (unit === 'week') return b.back === 0 ? '今週' : md(dt);
+    if (unit === 'month') return `${dt.getMonth() + 1}月`;
+    return String(dt.getFullYear());
+  }
+  function bucketName(unit, b){
+    const s = b.start, e = bucketEnd(unit, s);
+    if (unit === 'day') return dayLabel(b.k);
+    if (unit === 'week') return `${md(s)}〜${md(e)}の週`;
+    if (unit === 'month') return `${s.getFullYear()}年${s.getMonth() + 1}月`;
+    return `${s.getFullYear()}年`;
+  }
+  function niceMax(v){ if (v <= 0) return 0; const e = Math.pow(10, Math.floor(Math.log10(v))), f = v / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * e; }
+  function renderChart(){
+    const U = UNIT[chartUnit], count = U.count();
+    document.querySelectorAll('#chartUnit button').forEach(b => b.setAttribute('aria-pressed', b.dataset.u === chartUnit ? 'true' : 'false'));
+    document.querySelectorAll('#chartRange button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.r === chartRange ? 'true' : 'false'));
+    $('chartRangeRow').hidden = chartUnit !== 'day';
+    $('chartTitle').textContent = `${U.name}ごとの純利益`;
+    const per = new Map();
+    for (const x of chartPlays){ const k = bucketKey(chartUnit, x.day); const d = per.get(k) || {net:0, n:0}; d.net += x.result - costOf(x); d.n++; per.set(k, d); }
+    const days = [];
+    for (let i = count - 1; i >= 0; i--){
+      const back = chartOff + i, start = bucketStart(chartUnit, back), k = startKey(chartUnit, start);
+      days.push({k, start, back, ...(per.get(k) || {net:0, n:0})});
+    }
+    // phone: fixed 360-wide drawing scaled to fit; wider screens: draw at real width so text stays small
+    const W = Math.max(360, Math.round($('chart').parentNode.clientWidth || 0)), H = W > 360 ? 200 : 180, L = 40, R = 6, T = 10, B = 22, cw = W - L - R, ch = H - T - B;
+    $('chart').setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const hi = niceMax(Math.max(0, ...days.map(d => d.net))), negMax = Math.max(0, ...days.map(d => -d.net));
+    const lo = negMax > 0 ? -Math.max(niceMax(negMax), niceMax(hi * 0.2)) : 0;
+    const top = hi || (lo ? 0 : 1), span = (top - lo) || 1;
+    const y = v => T + (top - v) / span * ch;
+    const step = cw / days.length, bw = Math.max(2, step * 0.62);
+    let g = '';
+    const ticks = (!hi && !lo) ? [0] : lo < 0 ? [top, 0, lo] : [top, top / 2, 0];
+    for (const t of ticks){ g += `<line class="${t === 0 ? 'zero' : 'grid'}" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${L - 5}" y="${y(t) + 3}" text-anchor="end">${t === 0 ? '0' : compact(t)}</text>`; }
+    const labelEvery = chartUnit !== 'day' ? 1 : chartRange <= 7 ? 1 : chartRange <= 14 ? 2 : 5;
+    days.forEach((d, i) => {
+      const cx = L + step * i + step / 2;
+      if (d.n){
+        const y0 = y(0), y1 = y(d.net), h = Math.max(1.5, Math.abs(y1 - y0));
+        const cls = ['cbar', d.net < 0 ? 'neg' : '', d.back === 0 ? 'today' : '', d.k === chartSel ? 'sel' : ''].filter(Boolean).join(' ');
+        g += `<rect class="${cls}" x="${cx - bw / 2}" y="${d.net < 0 ? y0 : y0 - h}" width="${bw}" height="${h}" rx="${Math.min(3, bw / 3)}"/>`;
+      }
+      g += `<rect class="hit" data-k="${d.k}" x="${cx - step / 2}" y="${T}" width="${step}" height="${ch + B}"/>`;
+      if ((count - 1 - i) % labelEvery === 0) g += `<text x="${cx}" y="${H - 6}" text-anchor="middle">${bucketLabel(chartUnit, d, i, count)}</text>`;
+    });
+    const played = days.filter(d => d.n), total = played.reduce((s, d) => s + d.net, 0);
+    if (played.length){ const avg = total / played.length; g += `<line class="avg" x1="${L}" x2="${W - R}" y1="${y(avg)}" y2="${y(avg)}"/>`; }
+    $('chart').innerHTML = g;
+    const f = days[0].start, todayD = bucketStart('day', 0);
+    let l = bucketEnd(chartUnit, days[days.length - 1].start); if (l > todayD) l = todayD;
+    const period = chartUnit === 'month' ? `${f.getFullYear()}/${f.getMonth() + 1}〜${l.getFullYear()}/${l.getMonth() + 1}`
+      : chartUnit === 'year' ? `${f.getFullYear()}〜${l.getFullYear()}年`
+      : (f.getFullYear() !== l.getFullYear() ? `${f.getFullYear()}/` : '') + `${md(f)}〜${md(l)}`;
+    $('chartPeriod').textContent = period + (chartOff === 0 ? '（今まで）' : '');
+    $('chartNext').disabled = chartOff === 0;
+    $('chartPrev').disabled = chartOff >= chartMaxOff();
+    $('chartToday').hidden = chartOff === 0;
+    const sel = days.find(d => d.k === chartSel);
+    const nm = chartUnit === 'day' ? `${count}日間` : `${count}${chartUnit === 'week' ? '週' : chartUnit === 'month' ? 'か月' : '年'}間`;
+    $('chartFoot').innerHTML = sel
+      ? `<span><b>${bucketName(chartUnit, sel)}</b></span><span>${sel.n ? `純利益 <b>${sfmt(sel.net)}</b>・${sel.n}プレイ` : '記録なし'}</span>`
+      : played.length
+        ? `<span>${nm}の合計 <b>${sfmt(total)}</b></span><span>点線＝プレイした${U.name}の平均 <b>${sfmt(total / played.length)}</b>（${played.length}${chartUnit === 'month' ? 'か月' : U.name}）</span>`
+        : `<span>この${nm}の記録はありません</span>`;
+  }
+  function chartMaxOff(){
+    // go back until the oldest record's bucket is at the left edge
+    let oldest = '';
+    for (const x of chartPlays) if (!oldest || x.day < oldest) oldest = x.day;
+    if (!oldest) return 0;
+    const ok = bucketKey(chartUnit, oldest);
+    let back = 0;
+    while (back < 5000 && startKey(chartUnit, bucketStart(chartUnit, back)) > ok) back++;
+    return Math.max(0, back - UNIT[chartUnit].count() + 1);
+  }
+  function shiftChart(n){
+    const v = Math.max(0, Math.min(chartMaxOff(), chartOff + n));
+    if (v !== chartOff){ chartOff = v; renderChart(); }
+  }
+  $('chartPrev').addEventListener('click', () => shiftChart(UNIT[chartUnit].count()));
+  $('chartNext').addEventListener('click', () => shiftChart(-UNIT[chartUnit].count()));
+  $('chartToday').addEventListener('click', () => { chartOff = 0; chartSel = ''; renderChart(); });
+  // drag / swipe sideways to slide one bar at a time
+  (() => {
+    const svg = $('chart');
+    let startX = null, startOff = 0, dragged = false;
+    svg.addEventListener('pointerdown', e => { startX = e.clientX; startOff = chartOff; dragged = false; });
+    svg.addEventListener('pointermove', e => {
+      if (startX === null) return;
+      const dx = e.clientX - startX;
+      if (!dragged && Math.abs(dx) < 8) return;
+      dragged = true;
+      const vbW = svg.viewBox.baseVal.width || 360;
+      const barPx = svg.getBoundingClientRect().width * ((vbW - 46) / vbW) / UNIT[chartUnit].count();
+      const v = Math.max(0, Math.min(chartMaxOff(), startOff + Math.round(dx / barPx)));
+      if (v !== chartOff){ chartOff = v; renderChart(); }
+    });
+    const end = () => { startX = null; };
+    svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end); svg.addEventListener('pointerleave', end);
+    svg.addEventListener('click', e => { if (dragged){ e.stopImmediatePropagation(); dragged = false; } }, true);
+  })();
+  $('chartRange').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; chartRange = +b.dataset.r; lsSet(LS_RANGE, String(chartRange)); chartSel = ''; chartOff = Math.min(chartOff, chartMaxOff()); renderChart(); });
+  $('chartUnit').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; chartUnit = b.dataset.u; lsSet(LS_UNIT, chartUnit); chartSel = ''; chartOff = 0; renderChart(); });
+  $('chart').addEventListener('click', e => { const r = e.target.closest('.hit'); if (!r) return; chartSel = chartSel === r.dataset.k ? '' : r.dataset.k; renderChart(); });
+
+  function renderDays(){
+    const today = dayKey(new Date());
+    const prefix = `${calY}-${pad(calM + 1)}-`;
+    const byDay = new Map();
+    for (const x of calPlays){
+      if (!x.day.startsWith(prefix)) continue;
+      const d = byDay.get(x.day) || {n:0, sum:0, play:0, cost:0, dur:0};
+      d.n++; d.sum += x.result; d.play += x.play; d.cost += costOf(x); if (hasDur(x)) d.dur += x.dur; byDay.set(x.day, d);
+    }
+    $('daysCount').textContent = `${calY}年${calM + 1}月分（プレイした日：${byDay.size}日）`;
+    if (!byDay.size){
+      $('days').innerHTML = `<div class="empty-note">${calY}年${calM + 1}月の記録はありません。カレンダーの ‹ › で月を切り替えられます</div>`;
+      return;
+    }
+    let h = '<table><thead><tr><th>日付</th><th>回数</th><th>合計</th><th>純利益</th><th>平均</th><th>倍率</th><th>時間</th></tr></thead><tbody>';
+    for (const k of [...byDay.keys()].sort().reverse()){
+      const d = byDay.get(k), net = d.sum - d.cost;
+      h += `<tr><td>${dayLabel(k)}${k===today?' 今日':''}</td><td>${d.n}</td><td>${fmt(d.sum)}</td><td class="n${net<0?' neg':''}">${sfmt(net)}</td><td>${fmt(d.sum/d.n)}</td><td class="x">${d.play ? '×' + (d.sum/d.play).toFixed(2) : '—'}</td><td>${d.dur ? hm(d.dur) : '—'}</td></tr>`;
+    }
+    $('days').innerHTML = h + '</tbody></table>';
+  }
+  function makeFold(btnId, bodyId, key){
+    const btn = $(btnId), body = $(bodyId);
+    const set = open => { body.hidden = !open; btn.setAttribute('aria-expanded', open ? 'true' : 'false'); lsSet(key, open ? '1' : '0'); };
+    set(lsGet(key) === '1');
+    btn.addEventListener('click', () => set(body.hidden));
+  }
+  makeFold('daysToggle', 'daysBody', 'tsum-coin-fold-days');
+  makeFold('charasToggle', 'charasBody', 'tsum-coin-fold-charas');
+  function renderCalendar(list){
+    if (list) calPlays = list;
+    const agg = dayAgg(calPlays);
+    const today = dayKey(new Date());
+    $('calTitle').textContent = `${calY}年${calM + 1}月`;
+    document.querySelectorAll('#calMode button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === calMode ? 'true' : 'false'));
+    const label = calMode === 'net' ? '純利益' : '獲得';
+
+    // month total
+    let mSum = 0, mDays = 0, mN = 0;
+    const last = new Date(calY, calM + 1, 0).getDate();
+    for (let i = 1; i <= last; i++){ const d = agg.get(dayKey(new Date(calY, calM, i))); if (d){ mSum += valOf(d); mDays++; mN += d.n; } }
+    $('calMonthSum').innerHTML = mN
+      ? `<div class="ms-total">月の${label} <strong>${sfmt(mSum)}</strong> 枚</div>`
+        + `<div class="ms-row"><span>プレイ日数<b>${mDays}日</b></span><span>プレイ回数<b>${mN}回</b></span><span>1日あたりの${label}<b>${sfmt(mSum / mDays)}</b></span></div>`
+      : `この月の記録はありません`;
+
+    // grid: Sunday-start full weeks, week total in the last column
+    let h = ['日','月','火','水','木','金','土'].map((w,i) => `<div class="cal-h${i===0?' sun':i===6?' sat':''}">${w}</div>`).join('') + '<div class="cal-h">週計</div>';
+    const first = new Date(calY, calM, 1);
+    let cur = new Date(calY, calM, 1 - first.getDay());
+    const end = new Date(calY, calM, last);
+    while (cur <= end){
+      let wSum = 0, wAny = false;
+      for (let i = 0; i < 7; i++){
+        const k = dayKey(cur), d = agg.get(k), v = valOf(d);
+        if (d){ wSum += v; wAny = true; }
+        const cls = ['cal-d', cur.getMonth() !== calM ? 'out' : '', k === today ? 'today' : '', k === calSel ? 'sel' : '', d && v < 0 ? 'neg' : ''].filter(Boolean).join(' ');
+        h += `<button type="button" class="${cls}" data-k="${k}" aria-label="${cur.getMonth()+1}月${cur.getDate()}日 ${d ? label + ' ' + fmt(v) + '枚' : '記録なし'}"><span class="dn">${cur.getDate()}</span><span class="dv">${d ? compact(v) : ''}</span></button>`;
+        cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 1);
+      }
+      h += `<div class="cal-w"><span class="dn">週</span><span class="dv">${wAny ? compact(wSum) : '—'}</span></div>`;
+    }
+    $('calGrid').innerHTML = h;
+
+    // selected day detail
+    const d = agg.get(calSel);
+    const [sy, sm, sd] = calSel.split('-').map(Number);
+    const t = `${sm}/${sd}（${'日月火水木金土'[new Date(sy, sm-1, sd).getDay()]}）`;
+    $('calDetail').innerHTML = d
+      ? `<span class="t">${t}</span><span class="full">${d.n} プレイ</span><span class="full row"><span>獲得 <b>${fmt(d.earn)}</b></span><span>純利益 <b>${sfmt(d.earn - d.cost)}</b></span></span><span class="full row"><span>1プレイ平均獲得 ${fmt(d.earn / d.n)}</span><span>1プレイ平均純利益 ${sfmt((d.earn - d.cost) / d.n)}</span></span>${d.play ? `<span class="full">平均倍率 ×${(d.earn / d.play).toFixed(2)}</span>` : ''}${d.dur ? `<span class="full">時間 ${hm(d.dur)}</span>` : ''}`
+      : `<span class="t">${t}</span><span>記録なし</span>`;
+    renderDays();
+  }
+  $('calPrev').addEventListener('click', () => { calM--; if (calM < 0){ calM = 11; calY--; } renderCalendar(); });
+  $('calNext').addEventListener('click', () => { calM++; if (calM > 11){ calM = 0; calY++; } renderCalendar(); });
+  $('calMode').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; calMode = b.dataset.m; lsSet(LS_CALMODE, calMode); renderCalendar(); });
+  $('calGrid').addEventListener('click', e => {
+    const b = e.target.closest('.cal-d'); if (!b) return;
+    calSel = b.dataset.k;
+    const [y, m] = calSel.split('-').map(Number);
+    if (y !== calY || m - 1 !== calM){ calY = y; calM = m - 1; }
+    if ((window.__histDays || []).includes(calSel)){ histDay = calSel; showN = 30; render(); } else renderCalendar();
+  });
+
+  /* ---- premium box goal ---- */
+  const LS_GOAL = 'tsum-coin-goal';
+  const BOX_PRICE = 30000;
+  let goal = null;
+  try { const g = JSON.parse(lsGet(LS_GOAL) || 'null'); if (g && g.pulls >= 0 && g.price > 0 && g.held >= 0 && g.setAt) goal = g; } catch(_) {}
+  document.querySelectorAll('#goalForm .gnum').forEach(el => el.addEventListener('input', () => {
+    const v = toInt(el.value); el.value = isNaN(v) ? '' : v.toLocaleString('ja-JP');
+  }));
+  function showGoalForm(on){
+    $('goalForm').hidden = !on; $('goalView').hidden = on || !goal;
+    $('goalCancel').hidden = !goal; $('goalErr').hidden = true;
+    if (on){
+      $('goalPulls').value = goal ? fmt(goal.pulls) : '';
+      $('goalHeld').value = goal ? fmt(goal.held + netSince(goal.setAt)) : '';
+      $('goalDate').value = goal && goal.deadline ? goal.deadline : '';
+    }
+  }
+  function netSince(iso){ const t = Date.parse(iso); return plays.reduce((s,x) => Date.parse(x.at) > t ? s + x.result - costOf(x) : s, 0); }
+  function renderGoal(){
+    if (!goal){ showGoalForm(true); return; }
+    if (!$('goalForm').hidden) return;
+    $('goalView').hidden = false;
+    const need = goal.pulls * BOX_PRICE;
+    const have = goal.held + netSince(goal.setAt);
+    const left = need - have;
+    const pct = need > 0 ? Math.max(0, Math.min(100, have / need * 100)) : 100;
+    const el = $('goalLeft');
+    if (left <= 0){ el.innerHTML = '完売できます'; el.classList.add('done'); }
+    else { el.innerHTML = `<small>あと</small>${fmt(left)}<small>枚</small>`; el.classList.remove('done'); }
+    $('goalBar').style.width = pct.toFixed(1) + '%';
+    $('goalBarWrap').setAttribute('aria-valuenow', pct.toFixed(0));
+    let sub = `<span>達成 <b>${pct.toFixed(1)}%</b>（${fmt(Math.max(0, have))} / ${fmt(need)}）</span>`;
+    if (left > 0){
+      const avgNet = plays.length ? plays.reduce((s,x) => s + x.result - costOf(x), 0) / plays.length : 0;
+      const timed = plays.filter(hasDur), dsum = timed.reduce((s,x) => s + x.dur, 0);
+      const hourly = dsum ? timed.reduce((s,x) => s + x.result - costOf(x), 0) / dsum * 3600 : 0;
+      sub += `<span>あと約 <b>${avgNet > 0 ? fmt(Math.ceil(left / avgNet)) : '—'}</b> プレイ</span>`;
+      sub += `<span>あと約 <b>${hourly > 0 ? hm(left / hourly * 3600) : '—'}</b></span>`;
+    }
+    sub += `<span>残り ${fmt(goal.pulls)} 回 × ${fmt(BOX_PRICE)} 枚</span>`;
+    $('goalSub').innerHTML = sub;
+
+    // deadline countdown and required pace
+    $('goalPaceWrap').hidden = !goal.deadline;
+    if (goal.deadline){
+      const [y,m,d] = goal.deadline.split('-').map(Number);
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const days = Math.round((new Date(y, m-1, d) - todayStart) / 86400000) + 1; // today counts
+      const cnt = $('goalCount');
+      const dl = `${m}/${d}（${'日月火水木金土'[new Date(y,m-1,d).getDay()]}）`;
+      if (days < 1){ cnt.innerHTML = `${dl}の期限を過ぎています`; cnt.classList.add('late'); }
+      else { cnt.innerHTML = `${dl}まで あと <b>${days}</b> 日（今日を含む）`; cnt.classList.remove('late'); }
+      if (left > 0 && days >= 1){
+        const perDay = left / days;
+        $('paceDay').textContent = fmt(Math.ceil(perDay));
+        $('paceWeek').textContent = fmt(Math.ceil(perDay * Math.min(7, days)));
+        $('paceMonth').textContent = fmt(Math.ceil(perDay * Math.min(30, days)));
+      } else {
+        const t = left <= 0 ? '達成' : '—';
+        $('paceDay').textContent = t; $('paceWeek').textContent = t; $('paceMonth').textContent = t;
+      }
+    }
+  }
+  $('goalEdit').addEventListener('click', () => showGoalForm(true));
+  $('goalCancel').addEventListener('click', () => { showGoalForm(false); renderGoal(); });
+  $('goalForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const pulls = toInt($('goalPulls').value), price = BOX_PRICE, held = toInt($('goalHeld').value);
+    const err = !(pulls >= 0) ? '残り回数を入れてください。' : !(price > 0) ? '1回の値段を入れてください。' : !(held >= 0) ? '今の所持コインを入れてください。' : '';
+    if (err){ $('goalErr').textContent = err; $('goalErr').hidden = false; return; }
+    goal = {pulls, price, held, setAt: new Date().toISOString()};
+    if (/^\d{4}-\d{2}-\d{2}$/.test($('goalDate').value)) goal.deadline = $('goalDate').value;
+    lsSet(LS_GOAL, JSON.stringify(goal));
+    showGoalForm(false); renderGoal();
+  });
+  $('charas').addEventListener('click', e => {
+    const b = e.target.closest('.cname'); if (!b) return;
+    filter = filter === b.dataset.n ? '' : b.dataset.n;
+    lsSet(LS_FILTER, filter); showN = 30; render();
+    $('filter').scrollIntoView({behavior:'smooth', block:'center'});
+  });
+
+  function ackBackup(){ mark = Math.floor(sum0() / STEP); lsSet(LS_MARK, String(mark)); $('banner').hidden = true; }
+  const sum0 = () => Math.max(0, plays.reduce((s,x) => s + x.result - costOf(x), 0));
+  $('bannerLater').addEventListener('click', ackBackup);
+  $('bannerGo').addEventListener('click', () => { $('backupSec').scrollIntoView({behavior:'smooth'}); saveFile(); });
+
+  /* ---- edit a record ---- */
+  const localDT = iso => { const d = new Date(iso); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const parseDur = s => {
+    s = String(s).trim().replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[：．.]/g, ':');
+    if (!s) return 0;
+    let m = s.match(/^(\d+):(\d{1,2})$/); if (m) return +m[1]*60 + +m[2];
+    m = s.match(/^(\d+)$/); if (m) return +m[1];
+    return NaN;
+  };
+  function closeEditor(){ editingId = null; $('editor').hidden = true; resetDel(); render(); }
+  function resetDel(){ const d = $('edDel'); d.classList.remove('armed'); d.textContent = 'この記録を削除'; }
+  function openEditor(id){
+    const x = plays.find(p => p.id === id); if (!x) return;
+    if (selectMode) return;
+    editingId = id;
+    $('edChara').value = x.chara || '';
+    $('edAt').value = localDT(x.at);
+    $('edPlay').value = fmt(x.play);
+    $('edRes').value = fmt(x.result);
+    $('edMult').value = (x.result / x.play).toFixed(1);
+    edMultTouched = false;
+    edPick.reset(Array.isArray(x.items) && x.items.length ? x.items : [], costOf(x));
+    $('edDur').value = hasDur(x) ? mmss(x.dur) : '';
+    $('edInfo').textContent = `${timeLabel(x.at)} の記録`;
+    $('edErr').hidden = true; resetDel();
+    $('editor').hidden = false;
+    setHist(true);
+    render();
+    $('editor').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+  document.querySelectorAll('#editor .numin').forEach(el => el.addEventListener('input', () => {
+    const v = toInt(el.value); el.value = isNaN(v) ? '' : v.toLocaleString('ja-JP');
+  }));
+  $('plays').addEventListener('click', e => {
+    if (selectMode){
+      const tr = e.target.closest('tr[data-id]'); if (!tr) return;
+      const id = tr.dataset.id;
+      if (selected.has(id)) selected.delete(id); else selected.add(id);
+      updateBulk(); render(); return;
+    }
+    const b = e.target.closest('.edit'); if (b) openEditor(b.dataset.id);
+  });
+
+  /* ---- bulk character change ---- */
+  function updateBulk(){
+    $('bulkCount').textContent = `${selected.size}件選択中`; $('bulkErr').hidden = true;
+  }
+
+
+  function setSelectMode(on){
+    selectMode = on; selected = new Set();
+    $('bulk').hidden = !on;
+    $('selToggle').textContent = on ? '選択をやめる' : 'まとめて選択';
+    if (on){ editingId = null; $('editor').hidden = true; $('bulkChara').value = ''; bulkPick.reset([], null); }
+    updateBulk(); render();
+  }
+  $('selToggle').addEventListener('click', () => setSelectMode(!selectMode));
+  $('bulkCancel').addEventListener('click', () => setSelectMode(false));
+  $('bulkAll').addEventListener('click', () => { shownIds.forEach(id => selected.add(id)); updateBulk(); render(); });
+  $('bulkChips').addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    $('bulkChara').value = b.dataset.n; markChips();
+  });
+  $('bulkChara').addEventListener('input', markChips);
+  $('bulkApply').addEventListener('click', () => {
+    if (!selected.size){ $('bulkErr').textContent = '変更する記録を履歴から選んでください。'; $('bulkErr').hidden = false; return; }
+    const ch = $('bulkChara').value.trim();
+    const cost = toInt($('bulkCost').value);
+    const fail = t => { $('bulkErr').textContent = t; $('bulkErr').hidden = false; };
+    if (!ch && isNaN(cost)) return fail('変更する項目を1つ以上入力してください。');
+    for (const x of plays){
+      if (!selected.has(x.id)) continue;
+      if (ch){ if (ch === NONE) delete x.chara; else x.chara = ch; }
+      if (!isNaN(cost)){ x.cost = cost; if (bulkPick.used && bulkPick.set.size) x.items = [...bulkPick.set]; else delete x.items; }
+    }
+    save(); setSelectMode(false);
+  });
+  // multiplier <-> play coins in the editor
+  let edMultTouched = false;
+  $('edMult').addEventListener('input', () => {
+    edMultTouched = true;
+    const m = toMult($('edMult').value), r = toInt($('edRes').value);
+    if (m >= 1 && r > 0) $('edPlay').value = fmt(Math.round(r / m));
+  });
+  ['edPlay','edRes'].forEach(id => $(id).addEventListener('input', () => {
+    const p = toInt($('edPlay').value), r = toInt($('edRes').value);
+    if (id === 'edRes' && edMultTouched){ const m = toMult($('edMult').value); if (m >= 1 && r > 0){ $('edPlay').value = fmt(Math.round(r / m)); return; } }
+    if (id === 'edPlay') edMultTouched = false;
+    if (p > 0 && r > 0) $('edMult').value = (r / p).toFixed(1);
+  }));
+  $('edCancel').addEventListener('click', closeEditor);
+  $('edSave').addEventListener('click', () => {
+    const x = plays.find(p => p.id === editingId); if (!x) return closeEditor();
+    const p = toInt($('edPlay').value), r = toInt($('edRes').value);
+    let c = toInt($('edCost').value); if (isNaN(c)) c = 0;
+    const dur = parseDur($('edDur').value);
+    const at = new Date($('edAt').value);
+    const err = !(p > 0) ? 'プレイ中のコインを入れてください。'
+      : !(r > 0) ? 'リザルトのコインを入れてください。'
+      : isNaN(dur) ? '時間は「1:25」のように分:秒で入れるか、空欄にしてください。'
+      : isNaN(at.getTime()) ? '日時を入れてください。' : '';
+    const mErr = $('edMult').value.trim() && !(toMult($('edMult').value) >= 1);
+    if (!err && mErr){ $('edErr').textContent = '倍率は「1.3」のように1.0以上の数字で入れてください。'; $('edErr').hidden = false; return; }
+    if (err){ $('edErr').textContent = err; $('edErr').hidden = false; return; }
+    if (edMultTouched) x.est = true;
+    else if (p !== x.play) delete x.est;
+    if (edPick.used) { if (edPick.set.size) x.items = [...edPick.set]; else delete x.items; }
+    else if (c !== costOf(x)) delete x.items;
+    x.play = p; x.result = r; x.cost = c;
+    if (dur > 0) x.dur = dur; else delete x.dur;
+    const ch = $('edChara').value.trim();
+    if (ch) x.chara = ch; else delete x.chara;
+    if ($('edAt').value !== localDT(x.at)){ x.at = at.toISOString(); x.day = dayKey(at); }
+    save(); closeEditor();
+  });
+  $('edDel').addEventListener('click', () => {
+    const d = $('edDel');
+    if (!d.classList.contains('armed')){
+      d.classList.add('armed'); d.textContent = 'もう一度押すと削除';
+      setTimeout(() => { if (d.classList.contains('armed')) resetDel(); }, 3000);
+      return;
+    }
+    plays = plays.filter(x => x.id !== editingId); save(); closeEditor();
+  });
+
+  /* ---- backup ---- */
+  const io = $('io'), ioMsg = $('ioMsg');
+  const say = (t, cls) => { ioMsg.textContent = t; ioMsg.className = 'msg' + (cls ? ' ' + cls : ''); };
+  const exportText = () => JSON.stringify({app:'tsum-coin', v:2, exportedAt:new Date().toISOString(), plays, goal});
+
+  async function saveFile(){
+    const now = new Date();
+    const name = `tsum-coin-${dayKey(now)}-${pad(now.getHours())}${pad(now.getMinutes())}.json`;
+    const blob = new Blob([exportText()], {type:'application/json'});
+    let file = null;
+    try { file = new File([blob], name, {type:'application/json'}); } catch(_) {}
+    // iPhone / iPad: share sheet, where 「"ファイル"に保存」 lets you pick any folder
+    if (file && navigator.canShare && navigator.canShare({files:[file]})){
+      try {
+        await navigator.share({files:[file]});
+        ackBackup();
+        say(`${plays.length} 件を保存しました（${name}）。`, 'ok');
+      } catch(e){
+        if (e && e.name === 'AbortError') say('保存をやめました。', '');
+        else download();
+      }
+      return;
+    }
+    download();
+    function download(){
+      const url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      ackBackup();
+      say(`${plays.length} 件をファイルに保存しました（${name}）。`, 'ok');
+    }
+  }
+  $('saveFileBtn').addEventListener('click', saveFile);
+
+  function importText(text){
+    let data;
+    try { data = JSON.parse(String(text).trim()); } catch(_) { say('読み込めませんでした。コイン帳で保存したファイル（または文字）か確認してください。', 'bad'); return; }
+    const list = Array.isArray(data) ? data : data && data.plays;
+    if (!Array.isArray(list)){ say('コイン帳の記録が入っていません。', 'bad'); return; }
+    const have = new Set(plays.map(x => x.id));
+    let added = 0;
+    for (const x of list){
+      if (!x || typeof x.id !== 'string' || !(x.play > 0) || !(x.result > 0) || typeof x.at !== 'string') continue;
+      if (have.has(x.id)) continue;
+      plays.push({id:x.id, play:+x.play, result:+x.result, cost: +x.cost || 0, ...(x.dur > 0 ? {dur: +x.dur} : {}), ...(x.est ? {est: true} : {}), ...(Array.isArray(x.items) ? {items: x.items.filter(k => typeof k === 'string').slice(0, 10)} : {}), ...(typeof x.chara === 'string' && x.chara ? {chara: x.chara.slice(0,30)} : {}), at:x.at, day: x.day || dayKey(new Date(x.at))});
+      have.add(x.id); added++;
+    }
+    let goalMsg = '';
+    const g = data && data.goal;
+    if (g && g.pulls >= 0 && g.held >= 0 && g.setAt && (!goal || Date.parse(g.setAt) > Date.parse(goal.setAt))){ goal = g; lsSet(LS_GOAL, JSON.stringify(goal)); showGoalForm(false); goalMsg = 'BOXの目標も読み込みました。'; }
+    save();
+    ackBackup();   // just restored from a backup: count the next 300,000 from here
+    render();
+    say((added ? `${added} 件を読み込みました。` : '新しい記録はありませんでした（すべて登録済み）。') + goalMsg, added || goalMsg ? 'ok' : '');
+  }
+  $('loadFile').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => importText(r.result);
+    r.onerror = () => say('ファイルを開けませんでした。', 'bad');
+    r.readAsText(f);
+    e.target.value = '';
+  });
+
+  // text fallback
+  $('exportBtn').addEventListener('click', () => {
+    const text = exportText();
+    io.value = text;
+    ackBackup();
+    const done = () => say(`${plays.length} 件をコピーしました。メモアプリなどに貼り付けて保存してください。`, 'ok');
+    const fallback = () => { io.focus(); io.select(); say('自動コピーできませんでした。文字を長押しして「すべてを選択」→「コピー」してください。', 'bad'); };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch(_) { fallback(); }
+  });
+  $('importBtn').addEventListener('click', () => importText(io.value));
+
+  let lastDay = dayKey(new Date());
+  document.addEventListener('visibilitychange', () => { const d = dayKey(new Date()); if (d !== lastDay){ lastDay = d; render(); } });
+
+  // table of contents: jump to a section, opening it if it is folded
+  $('toc').addEventListener('click', e => {
+    const b = e.target.closest('button[data-go]'); if (!b) return;
+    if (b.dataset.open){ const t = $(b.dataset.open); if (t && t.getAttribute('aria-expanded') !== 'true') t.click(); }
+    const target = $(b.dataset.go);
+    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (target) target.scrollIntoView({behavior: reduce ? 'auto' : 'smooth', block: 'start'});
+  });
+  // ↑ button: back to the top (table of contents)
+  (() => {
+    const btn = $('toTop'), toc = $('toc');
+    const update = () => { const on = toc.getBoundingClientRect().bottom <= 0; btn.classList.toggle('show', on); btn.tabIndex = on ? 0 : -1; btn.setAttribute('aria-hidden', on ? 'false' : 'true'); };
+    window.addEventListener('scroll', update, {passive: true});
+    window.addEventListener('resize', update);
+    let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => renderChart(), 150); });
+    btn.addEventListener('click', () => {
+      const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({top: 0, behavior: reduce ? 'auto' : 'smooth'});
+    });
+    update();
+  })();
+  /* ---- sync with Firebase (Authentication: email/password, Firestore) ---- */
+  (() => {
+    const CFG = window.FIREBASE_CONFIG;
+    const statusEl = $('syncStatus');
+    const setStatus = (t, on) => { statusEl.textContent = t; statusEl.classList.toggle('on', !!on); };
+    const show = id => ['syncOff','loginForm','syncOn'].forEach(x => { $(x).hidden = x !== id; });
+    const msg = (t, bad) => { const m = $('syncMsg'); m.textContent = t; m.className = 'msg' + (bad ? ' bad' : t ? ' ok' : ''); };
+    if (!CFG || !CFG.apiKey || !window.firebase){ show('syncOff'); setStatus('この端末に保存中'); return; }
+    firebase.initializeApp(CFG);
+    const auth = firebase.auth(), db = firebase.firestore();
+    try { db.enablePersistence({synchronizeTabs: true}).catch(() => {}); } catch(_) {}
+    let col = null, meta = null, unsub = [], synced = new Map(), ready = false;
+    const errText = e => {
+      const c = (e && e.code) || '';
+      return c.includes('invalid-email') ? 'メールアドレスの形が正しくありません。'
+        : c.includes('weak-password') ? 'パスワードは6文字以上にしてください。'
+        : c.includes('email-already-in-use') ? 'このメールアドレスは登録済みです。「ログイン」を押してください。'
+        : (c.includes('wrong-password') || c.includes('invalid-credential') || c.includes('user-not-found')) ? 'メールアドレスかパスワードが違います。はじめての場合は「新規登録」を押してください。'
+        : c.includes('too-many-requests') ? '何度も失敗したため、少し時間をおいてからもう一度試してください。'
+        : c.includes('network') ? '通信できませんでした。電波のよいところでもう一度試してください。'
+        : 'うまくいきませんでした（' + (c || 'エラー') + '）。';
+    };
+    const creds = () => [$('syncEmail').value.trim(), $('syncPass').value];
+    $('loginForm').addEventListener('submit', e => {
+      e.preventDefault(); const [m, p] = creds();
+      if (!m || !p) return msg('メールアドレスとパスワードを入れてください。', true);
+      msg('ログイン中…'); auth.signInWithEmailAndPassword(m, p).catch(err => msg(errText(err), true));
+    });
+    $('signupBtn').addEventListener('click', () => {
+      const [m, p] = creds();
+      if (!m || !p) return msg('登録したいメールアドレスとパスワードを入れてください。', true);
+      msg('登録中…'); auth.createUserWithEmailAndPassword(m, p).catch(err => msg(errText(err), true));
+    });
+    $('logoutBtn').addEventListener('click', () => auth.signOut());
+
+    // local changes -> cloud (only what changed since the last sync)
+    window.__pushPlays = () => {
+      if (!col || !ready) return;
+      const ops = [], now = new Map();
+      for (const x of plays){ const j = JSON.stringify(x); now.set(x.id, j); if (synced.get(x.id) !== j) ops.push(['set', x]); }
+      for (const id of synced.keys()) if (!now.has(id)) ops.push(['del', id]);
+      if (!ops.length) return;
+      synced = now;
+      for (let i = 0; i < ops.length; i += 400){
+        const batch = db.batch();
+        for (const [op, v] of ops.slice(i, i + 400)){ if (op === 'set') batch.set(col.doc(v.id), v); else batch.delete(col.doc(v)); }
+        batch.commit().catch(() => setStatus('同期できませんでした。電波を確認してください', false));
+      }
+    };
+    window.__pushGoal = v => { if (meta && ready) { try { meta.set({goal: JSON.parse(v)}, {merge: true}).catch(() => {}); } catch(_) {} } };
+
+    function stop(){
+      unsub.forEach(f => f()); unsub = []; col = meta = null; ready = false; synced = new Map();
+    }
+    auth.onAuthStateChanged(async user => {
+      stop();
+      if (!user){ show('loginForm'); setStatus('この端末に保存中（同期はログインすると始まります）'); return; }
+      show('syncOn'); $('syncWho').textContent = `${user.email} でログイン中`;
+      setStatus('同期の準備中…');
+      const home = db.collection('users').doc(user.uid);
+      col = home.collection('plays'); meta = home;
+      try {
+        // first time on this device: send records that only exist here
+        const snap = await col.get();
+        const remote = new Set(snap.docs.map(d => d.id));
+        synced = new Map(snap.docs.map(d => [d.id, JSON.stringify(d.data())]));
+        const mine = plays.filter(x => !remote.has(x.id));
+        for (let i = 0; i < mine.length; i += 400){
+          const batch = db.batch(); mine.slice(i, i + 400).forEach(x => batch.set(col.doc(x.id), x)); await batch.commit();
+          mine.slice(i, i + 400).forEach(x => synced.set(x.id, JSON.stringify(x)));
+        }
+      } catch(e){ setStatus('同期できませんでした。電波を確認してください'); }
+      ready = true;
+      unsub.push(col.onSnapshot(snap => {
+        plays = snap.docs.map(d => d.data()).filter(x => x && typeof x.id === 'string' && x.play > 0 && x.result > 0);
+        synced = new Map(plays.map(x => [x.id, JSON.stringify(x)]));
+        try { localStorage.setItem(LS, JSON.stringify(plays)); } catch(_) {}
+        setStatus(snap.metadata.fromCache ? '同期中（オフライン・つながったら送ります）' : `同期中（${user.email}）`, !snap.metadata.fromCache);
+        render();
+      }, () => setStatus('同期できませんでした。もう一度ログインしてください')));
+      unsub.push(meta.onSnapshot(d => {
+        const g = d.exists ? (d.data() || {}).goal : null;
+        const ok = g && g.pulls >= 0 && g.held >= 0 && g.setAt;
+        if (ok && (!goal || Date.parse(g.setAt) > Date.parse(goal.setAt))){
+          goal = g; try { localStorage.setItem(LS_GOAL, JSON.stringify(g)); } catch(_) {}
+          showGoalForm(false); renderGoal();
+        } else if (goal && (!ok || Date.parse(goal.setAt) > Date.parse(g.setAt))){
+          meta.set({goal}, {merge: true}).catch(() => {});
+        }
+      }, () => {}));
+    });
+  })();
+
+  goalReady = true;
+  showGoalForm(!goal);
+  render(); updatePreview(); tick(); renderGoal();
+})();
+</script>
+
+</body>
+</html>
