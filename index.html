@@ -15,8 +15,8 @@ try{var t=localStorage.getItem("tsum-coin-theme");if(t==="light"||t==="dark")doc
 <style>
 :root{--top-extra:0px;color-scheme:light;padding-top:calc(env(safe-area-inset-top,0px) + var(--top-extra));padding-bottom:env(safe-area-inset-bottom,0px)}
 /* home-screen app (iPhone / iPad): the status bar (clock, battery) blurs what sits under it, so start the page below it */
-@media (display-mode: standalone){:root{--top-extra:30px}}
-:root.standalone{--top-extra:30px}
+@media (display-mode: standalone){:root{--top-extra:20px}}
+:root.standalone{--top-extra:20px}
 body{margin:0;font:14px/1.5 system-ui,-apple-system,sans-serif}
 img{max-width:100%}
 [hidden]{display:none!important}
