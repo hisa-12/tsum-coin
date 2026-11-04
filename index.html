@@ -86,12 +86,15 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-siz
   /* left and right scroll on their own; the page itself fits the screen */
   html,body{overflow:hidden}
   body{padding-block:20px 0}
-  .wrap{height:calc(100vh - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));height:calc(100dvh - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));grid-template-rows:auto auto minmax(0,1fr)}
+  .wrap{height:calc(100vh - 8px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));height:calc(100dvh - 8px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));grid-template-rows:auto auto minmax(0,1fr)}
   .col-side,.col-main{height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:2px 6px 0 2px;scrollbar-width:thin}
   .col-side::after,.col-main::after{content:"";flex:none;height:6px}
   /* the title hides while scrolling down and comes back when scrolling up */
-  .wrap > header{max-height:90px;overflow:hidden;transition:max-height .25s ease,opacity .2s ease,margin-bottom .25s ease}
-  .wrap.head-off > header{max-height:0;opacity:0;margin-bottom:-22px}
+  .wrap{row-gap:0}
+  body{padding-block:8px 0}
+  .wrap > header{max-height:110px;overflow:hidden;padding-top:12px;margin-bottom:22px;transition:max-height .25s ease,opacity .2s ease,margin-bottom .25s ease,padding-top .25s ease}
+  .wrap > .toc{margin-bottom:16px}
+  .wrap.head-off > header{max-height:0;opacity:0;margin-bottom:0;padding-top:0}
   @media (prefers-reduced-motion: reduce){.wrap > header{transition:none}}
   .wrap .goal-left{font-size:34px}
 }
@@ -1642,11 +1645,11 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
       let last = 0;
       col.addEventListener('scroll', () => {
         if (!mq.matches) return;
-        const t = col.scrollTop, d = t - last;
-        if (t < 8) wrap.classList.remove('head-off');
-        else if (d > 6) wrap.classList.add('head-off');
-        else if (d < -6) wrap.classList.remove('head-off');
-        if (Math.abs(d) > 6 || t < 8) last = t;
+        // hidden once you scroll down; shown again only when back at the very top
+        const t = col.scrollTop;
+        if (t <= 2) wrap.classList.remove('head-off');
+        else if (t - last > 6) wrap.classList.add('head-off');
+        last = t;
       }, {passive: true});
     });
     mq.addEventListener ? mq.addEventListener('change', () => wrap.classList.remove('head-off')) : null;
