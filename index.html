@@ -8,6 +8,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f3f6f5">
+<script>try{var t=localStorage.getItem("tsum-coin-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-180.png">
 <style>
@@ -82,7 +83,10 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-siz
 /* PC / landscape tablet: input on the left (stays in view), results on the right */
 @media (min-width:1100px){
   .wrap{max-width:1280px;display:grid;grid-template-columns:minmax(360px,420px) minmax(0,1fr);column-gap:32px;row-gap:22px;align-items:start}
-  .wrap > header,.wrap > .toc{grid-column:1 / -1}
+  .wrap > header{grid-column:1 / -1}
+  .col-side{grid-column:1;grid-row:2 / 4}
+  .col-main{grid-column:2;grid-row:3}
+  .wrap > .tabbar{grid-column:2;grid-row:2}
   /* left and right scroll on their own; the page itself fits the screen */
   html,body{overflow:hidden}
   body{padding-block:20px 0}
@@ -92,9 +96,17 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-siz
   /* the title hides while scrolling down and comes back when scrolling up */
   .wrap{row-gap:0}
   body{padding-block:8px 0}
-  .wrap > header{max-height:110px;overflow:hidden;padding-top:12px;margin-bottom:22px;transition:max-height .25s ease,opacity .2s ease,margin-bottom .25s ease,padding-top .25s ease}
-  .wrap > .toc{margin-bottom:16px}
-  .wrap.head-off > header{max-height:0;opacity:0;margin-bottom:0;padding-top:0}
+  .wrap > header{max-height:110px;overflow:hidden;padding-top:12px;margin-bottom:14px;transition:max-height .25s ease,opacity .2s ease,margin-bottom .25s ease,padding-top .25s ease}
+  .wrap > .tabbar{position:static;margin-bottom:14px;padding:4px;border:1px solid var(--line);border-radius:14px;background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none;grid-template-columns:repeat(3,1fr)}
+  .wrap > .tabbar button[data-tab="rec"]{display:none}
+  .wrap > .tabbar button{flex-direction:row;justify-content:center;gap:6px;font-size:14px;padding:8px 0}
+  .wrap > .tabbar svg{width:20px;height:20px}
+  .wrap > .tabbar button[aria-current="page"]{background:color-mix(in srgb,var(--teal) 12%,var(--surface))}
+  body{padding-bottom:0 !important}
+  .wrap .col-side[hidden]{display:flex !important}
+  .wrap.head-off > header{max-height:28px;padding-top:4px;margin-bottom:8px}
+  .wrap.head-off > header .app-title{display:none}
+  .wrap.head-off > header .status{margin-left:auto}
   @media (prefers-reduced-motion: reduce){.wrap > header{transition:none}}
   .wrap .goal-left{font-size:34px}
 }
@@ -195,6 +207,8 @@ tr.sel td{background:color-mix(in srgb,var(--teal) 10%,transparent)}
 .hist-toggle[aria-expanded="true"]{margin-bottom:10px}
 .hist-toggle[aria-expanded="true"] .chev{transform:rotate(90deg)}
 @media (prefers-reduced-motion: reduce){.hist-toggle .chev{transition:none}}
+.hist-toggle > span:nth-child(2){white-space:nowrap}
+@media (max-width:480px){.hist-hint{display:none}}
 .hist-count{font-family:var(--font-body);font-size:13px;color:var(--muted);font-weight:700}
 .hist-hint{margin-left:auto;font-family:var(--font-body);font-size:12px;color:var(--muted);font-weight:500}
 .hist-toggle[aria-expanded="true"] .hist-hint{display:none}
@@ -315,32 +329,33 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 #chart text.avgl{fill:var(--coin-deep);font-weight:700}
 .chart-foot{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:2px 14px}
 .chart-foot b{color:var(--ink)}
-.toc{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.toc-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 2px}
-.toc .toc-title{margin:0}
-.toc-head .status{margin:0;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--muted);text-align:right;min-width:0}
-.toc-head .status .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
-.toc-head .status.on{color:var(--teal)}
-.toc-head .status.on .dot{background:var(--teal);box-shadow:0 0 0 3px color-mix(in srgb,var(--teal) 22%,transparent)}
-.toc-head .status.warn{color:var(--danger)}
-.toc-head .status.warn .dot{background:var(--danger)}
-.toc button{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:700}
-.toc button:active{background:var(--coin-soft)}
-#syncSec,#goal,#form,#secSummary,#secChart,#secCal,#secDays,#secCharas,#secHist,#backupSec{scroll-margin-top:12px}
-.to-top{position:fixed;right:calc(16px + env(safe-area-inset-right, 0px));bottom:calc(18px + env(safe-area-inset-bottom, 0px));z-index:20;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;width:52px;height:52px;border-radius:18px;
-  border:1px solid color-mix(in srgb,var(--teal) 30%,transparent);
-  background:color-mix(in srgb,var(--surface) 82%,transparent);-webkit-backdrop-filter:blur(12px) saturate(1.4);backdrop-filter:blur(12px) saturate(1.4);
-  color:var(--teal);box-shadow:0 1px 2px rgba(0,0,0,.08),0 8px 24px -6px color-mix(in srgb,var(--teal) 45%,transparent);
-  opacity:0;transform:translateY(12px) scale(.92);pointer-events:none;transition:opacity .22s ease,transform .22s ease}
-.to-top span{font-size:10px;font-weight:700;letter-spacing:.06em;margin-top:-2px}
-.to-top.show{opacity:1;transform:none;pointer-events:auto}
-.to-top:active{transform:scale(.94);background:color-mix(in srgb,var(--coin-soft) 85%,transparent)}
-@media (prefers-reduced-motion: reduce){.to-top{transition:none}}
 .sync-form{display:flex;flex-direction:column;gap:10px}
 .sync-form .field input{font:inherit;font-size:16px;padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box}
 .sync-form .field input:focus{outline:none;border-color:var(--coin)}
 .sync-form .field label{font-size:12px;font-weight:700;color:var(--muted)}
+/* app header: title + sync status */
+.apphead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.apphead h1{margin:0}
+.apphead .status{margin:0;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--muted);min-width:0}
+.apphead .status .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.apphead .status.on{color:var(--teal)}
+.apphead .status.on .dot{background:var(--teal);box-shadow:0 0 0 3px color-mix(in srgb,var(--teal) 22%,transparent)}
+.apphead .status.warn{color:var(--danger)}
+.apphead .status.warn .dot{background:var(--danger)}
+/* tabs: bottom bar on phones */
+.tabpage{display:flex;flex-direction:column;gap:22px;min-width:0}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(4,1fr);
+  padding:6px max(10px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
+  background:color-mix(in srgb,var(--surface) 88%,transparent);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);
+  border-top:1px solid var(--line)}
+.tabbar button{border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;font-size:11px;font-weight:700;border-radius:12px}
+.tabbar svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tabbar button[aria-current="page"]{color:var(--teal)}
+.tabbar button[aria-current="page"] svg{stroke-width:2.4}
+.tabbar button:active{background:var(--coin-soft)}
+body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
+.seg-wide{display:flex;width:100%}
+.seg-wide button{flex:1;padding:8px 6px;font-size:13px}
 .timer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted);font-weight:700}
 .timer b{font-family:var(--font-display);font-size:20px;color:var(--ink);font-variant-numeric:tabular-nums}
 .timer b.off{color:var(--muted);font-size:14px}
@@ -363,28 +378,28 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 </style>
 
 <div class="wrap">
-  <header>
-    <h1><span class="coin-dot" aria-hidden="true"></span>ツムツム コイン帳</h1>
+  <header class="apphead">
+    <h1 class="app-title"><span class="coin-dot" aria-hidden="true"></span>ツムツム コイン帳</h1>
+    <div class="status" id="syncStatus" role="status"><span class="dot" aria-hidden="true"></span><span id="syncText">この端末に保存中</span></div>
   </header>
 
-  <nav class="toc" id="toc" aria-labelledby="tocTitle">
-    <div class="toc-head"><h2 class="toc-title" id="tocTitle">目次</h2><div class="status" id="syncStatus" role="status"><span class="dot" aria-hidden="true"></span><span id="syncText">この端末に保存中</span></div></div>
-    <button type="button" data-go="goal">BOX目標</button>
-    <button type="button" data-go="form">記録する</button>
-    <button type="button" data-go="secSummary">まとめ</button>
-    <button type="button" data-go="secChart">グラフ</button>
-    <button type="button" data-go="secCal">カレンダー</button>
-    <button type="button" data-go="secDays" data-open="daysToggle">日別</button>
-    <button type="button" data-go="secCharas" data-open="charasToggle">キャラ別</button>
-    <button type="button" data-go="secHist" data-open="histToggle">プレイ履歴</button>
-    <button type="button" data-go="syncSec">同期</button>
-    <button type="button" data-go="backupSec">バックアップ</button>
+  <nav class="tabbar" id="tabbar" aria-label="画面の切り替え">
+    <button type="button" data-tab="rec" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/></svg><span>記録</span></button>
+    <button type="button" data-tab="sum"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V11M10 19V6M15 19v-6M20 19V9"/></svg><span>まとめ</span></button>
+    <button type="button" data-tab="hist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg><span>履歴</span></button>
+    <button type="button" data-tab="set"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></svg><span>設定</span></button>
   </nav>
 
-  <div class="col col-side">
+
+  <div class="col col-side tabpage" id="tabRec" data-page="rec">
   <section class="goal" id="goal">
+    <div id="goalEmpty" hidden>
+      <div class="goal-top"><span class="k">プレミアムBOX完売まで</span></div>
+      <p class="msg" style="margin:6px 0 10px">目標を入れると、完売まであと何枚か、1日に何枚稼げばいいかが出ます。</p>
+      <button class="btn primary" id="goalSetup" type="button">目標を設定する</button>
+    </div>
     <div id="goalView" hidden>
-      <div class="goal-top"><span class="k">プレミアムBOX完売まで</span><button class="btn" id="goalEdit" type="button">設定</button></div>
+      <div class="goal-top"><span class="k">プレミアムBOX完売まで</span><button class="btn" id="goalEdit" type="button">変更</button></div>
       <div class="goal-left num" id="goalLeft">—</div>
       <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="goalBarWrap"><i id="goalBar"></i></div>
       <div class="goal-sub num" id="goalSub"></div>
@@ -397,20 +412,6 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
         </div>
       </div>
     </div>
-    <form class="goal-form" id="goalForm" novalidate>
-      <b>プレミアムBOXの目標（1回 30,000枚）</b>
-      <div class="goal-grid">
-        <div class="field"><label for="goalPulls">完売までの残り回数</label><input id="goalPulls" class="gnum" inputmode="numeric" autocomplete="off" placeholder="回"></div>
-        <div class="field"><label for="goalHeld">今の所持コイン</label><input id="goalHeld" class="gnum" inputmode="numeric" autocomplete="off" placeholder="枚"></div>
-        <div class="field wide"><label for="goalDate">完売したい日（なくてもOK）</label><input id="goalDate" type="date"></div>
-      </div>
-      <p class="err" id="goalErr" hidden></p>
-      <div class="ed-actions">
-        <button class="btn primary" type="submit">保存</button>
-        <button class="btn" id="goalCancel" type="button" hidden>やめる</button>
-      </div>
-      <p class="hint">保存した後に記録したプレイの純利益で、残りが自動で減ります。ギフトやミッション報酬など記録外でコインが増えたときや、ボックスを引いたときは、回数と所持コインを入れ直して保存してください。</p>
-    </form>
   </section>
 
   <div class="banner" id="banner" hidden>
@@ -474,6 +475,7 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
   </div>
 
   <div class="col col-main">
+  <div class="tabpage" id="tabSum" data-page="sum">
   <section id="secSummary">
     <div class="sec-head">
       <h2>まとめ</h2>
@@ -547,7 +549,9 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
       <div class="cal-detail" id="calDetail"></div>
     </div>
   </section>
+  </div>
 
+  <div class="tabpage" id="tabHist" data-page="hist" hidden>
   <section id="secDays">
     <button class="hist-toggle" id="daysToggle" type="button" aria-expanded="false" aria-controls="daysBody"><span class="chev" aria-hidden="true">▸</span><span>日別</span><span class="hist-count" id="daysCount"></span><span class="hist-hint">タップで表示</span></button>
     <div id="daysBody" hidden>
@@ -605,6 +609,39 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
     <button class="more" id="more" type="button" hidden>もっと見る</button>
     </div>
   </section>
+  </div>
+
+  <div class="tabpage" id="tabSet" data-page="set" hidden>
+  <section id="themeSec">
+    <h2>画面の明るさ</h2>
+    <div class="backup">
+      <p class="msg" style="margin:0 0 10px">「自動」は、iPhoneやPCの設定（ライト／ダーク）に合わせて切り替わります。</p>
+      <div class="seg seg-wide" id="themeSeg" role="group" aria-label="画面の明るさ">
+        <button type="button" data-th="auto" aria-pressed="true">自動</button>
+        <button type="button" data-th="light" aria-pressed="false">ライト</button>
+        <button type="button" data-th="dark" aria-pressed="false">ダーク</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="goalSec">
+    <h2>プレミアムBOXの目標（1回 30,000枚）</h2>
+    <div class="backup">
+      <form class="goal-form" id="goalForm" novalidate>
+      <div class="goal-grid">
+        <div class="field"><label for="goalPulls">完売までの残り回数</label><input id="goalPulls" class="gnum" inputmode="numeric" autocomplete="off" placeholder="回"></div>
+        <div class="field"><label for="goalHeld">今の所持コイン</label><input id="goalHeld" class="gnum" inputmode="numeric" autocomplete="off" placeholder="枚"></div>
+        <div class="field wide"><label for="goalDate">完売したい日（なくてもOK）</label><input id="goalDate" type="date"></div>
+      </div>
+      <p class="err" id="goalErr" hidden></p>
+      <p class="msg ok" id="goalSaved" hidden></p>
+      <div class="ed-actions">
+        <button class="btn primary" type="submit">保存</button>
+      </div>
+      <p class="hint">保存した後に記録したプレイの純利益で、残りが自動で減ります。ギフトやミッション報酬など記録外でコインが増えたときや、ボックスを引いたときは、回数と所持コインを入れ直して保存してください。</p>
+      </form>
+    </div>
+  </section>
 
   <section id="syncSec">
     <h2>同期</h2>
@@ -654,9 +691,9 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
     </div>
   </section>
   </div>
+  </div>
 </div>
 
-<button type="button" class="to-top" id="toTop" aria-label="一番上（目次）に戻る" tabindex="-1"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 14.5 12 8.5l6 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>目次</span></button>
 
 <script>
 (function(){
@@ -1244,20 +1281,17 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
   document.querySelectorAll('#goalForm .gnum').forEach(el => el.addEventListener('input', () => {
     const v = toInt(el.value); el.value = isNaN(v) ? '' : v.toLocaleString('ja-JP');
   }));
-  function showGoalForm(on){
-    $('goalForm').hidden = !on; $('goalView').hidden = on || !goal;
-    $('goalCancel').hidden = !goal; $('goalErr').hidden = true;
-    if (on){
-      $('goalPulls').value = goal ? fmt(goal.pulls) : '';
-      $('goalHeld').value = goal ? fmt(goal.held + netSince(goal.setAt)) : '';
-      $('goalDate').value = goal && goal.deadline ? goal.deadline : '';
-    }
+  // the goal form lives on the settings tab; fill it with the current values
+  function showGoalForm(){
+    $('goalErr').hidden = true;
+    $('goalPulls').value = goal ? fmt(goal.pulls) : '';
+    $('goalHeld').value = goal ? fmt(goal.held + netSince(goal.setAt)) : '';
+    $('goalDate').value = goal && goal.deadline ? goal.deadline : '';
   }
   function netSince(iso){ const t = Date.parse(iso); return plays.reduce((s,x) => Date.parse(x.at) > t ? s + x.result - costOf(x) : s, 0); }
   function renderGoal(){
-    if (!goal){ showGoalForm(true); return; }
-    if (!$('goalForm').hidden) return;
-    $('goalView').hidden = false;
+    $('goalEmpty').hidden = !!goal; $('goalView').hidden = !goal;
+    if (!goal) return;
     const need = goal.pulls * BOX_PRICE;
     const have = goal.held + netSince(goal.setAt);
     const left = need - have;
@@ -1300,8 +1334,9 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
       }
     }
   }
-  $('goalEdit').addEventListener('click', () => showGoalForm(true));
-  $('goalCancel').addEventListener('click', () => { showGoalForm(false); renderGoal(); });
+  const toGoalSettings = () => { showTab('set'); showGoalForm(); const t = $('goalSec'); if (t) t.scrollIntoView({block:'start'}); };
+  $('goalEdit').addEventListener('click', toGoalSettings);
+  $('goalSetup').addEventListener('click', toGoalSettings);
   $('goalForm').addEventListener('submit', e => {
     e.preventDefault();
     const pulls = toInt($('goalPulls').value), price = BOX_PRICE, held = toInt($('goalHeld').value);
@@ -1310,7 +1345,9 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
     goal = {pulls, price, held, setAt: new Date().toISOString()};
     if (/^\d{4}-\d{2}-\d{2}$/.test($('goalDate').value)) goal.deadline = $('goalDate').value;
     lsSet(LS_GOAL, JSON.stringify(goal));
-    showGoalForm(false); renderGoal();
+    showGoalForm(); renderGoal();
+    $('goalSaved').textContent = '保存しました。記録の画面に反映されています。'; $('goalSaved').hidden = false;
+    setTimeout(() => { $('goalSaved').hidden = true; }, 4000);
   });
   $('charas').addEventListener('click', e => {
     const b = e.target.closest('.cname'); if (!b) return;
@@ -1498,7 +1535,7 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
     }
     let goalMsg = '';
     const g = data && data.goal;
-    if (g && g.pulls >= 0 && g.held >= 0 && g.setAt && (!goal || Date.parse(g.setAt) > Date.parse(goal.setAt))){ goal = g; lsSet(LS_GOAL, JSON.stringify(goal)); showGoalForm(false); goalMsg = 'BOXの目標も読み込みました。'; }
+    if (g && g.pulls >= 0 && g.held >= 0 && g.setAt && (!goal || Date.parse(g.setAt) > Date.parse(goal.setAt))){ goal = g; lsSet(LS_GOAL, JSON.stringify(goal)); showGoalForm(); goalMsg = 'BOXの目標も読み込みました。'; }
     save();
     ackBackup();   // just restored from a backup: count the next 300,000 from here
     render();
@@ -1527,27 +1564,6 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
   let lastDay = dayKey(new Date());
   document.addEventListener('visibilitychange', () => { const d = dayKey(new Date()); if (d !== lastDay){ lastDay = d; render(); } });
 
-  // table of contents: jump to a section, opening it if it is folded
-  $('toc').addEventListener('click', e => {
-    const b = e.target.closest('button[data-go]'); if (!b) return;
-    if (b.dataset.open){ const t = $(b.dataset.open); if (t && t.getAttribute('aria-expanded') !== 'true') t.click(); }
-    const target = $(b.dataset.go);
-    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (target) target.scrollIntoView({behavior: reduce ? 'auto' : 'smooth', block: 'start'});
-  });
-  // ↑ button: back to the top (table of contents)
-  (() => {
-    const btn = $('toTop'), toc = $('toc');
-    const update = () => { const on = toc.getBoundingClientRect().bottom <= 0; btn.classList.toggle('show', on); btn.tabIndex = on ? 0 : -1; btn.setAttribute('aria-hidden', on ? 'false' : 'true'); };
-    window.addEventListener('scroll', update, {passive: true});
-    window.addEventListener('resize', update);
-    let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => renderChart(), 150); });
-    btn.addEventListener('click', () => {
-      const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-      window.scrollTo({top: 0, behavior: reduce ? 'auto' : 'smooth'});
-    });
-    update();
-  })();
   /* ---- sync with Firebase (Authentication: email/password, Firestore) ---- */
   (() => {
     const CFG = window.FIREBASE_CONFIG;
@@ -1652,7 +1668,7 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
         const ok = g && g.pulls >= 0 && g.held >= 0 && g.setAt;
         if (ok && (!goal || Date.parse(g.setAt) > Date.parse(goal.setAt))){
           goal = g; try { localStorage.setItem(LS_GOAL, JSON.stringify(g)); } catch(_) {}
-          showGoalForm(false); renderGoal();
+          showGoalForm(); renderGoal();
         } else if (goal && (!ok || Date.parse(goal.setAt) > Date.parse(g.setAt))){
           meta.set({goal}, {merge: true}).catch(() => {});
         }
@@ -1675,8 +1691,39 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
     });
     mq.addEventListener ? mq.addEventListener('change', () => wrap.classList.remove('head-off')) : null;
   })();
+  /* ---- tabs ---- */
+  const wideMQ = window.matchMedia('(min-width:1100px)');
+  let curTab = 'rec';
+  function showTab(t){
+    if (wideMQ.matches && t === 'rec') t = (curTab === 'rec' ? 'sum' : curTab);
+    curTab = t;
+    document.querySelectorAll('#tabbar button').forEach(b => b.setAttribute('aria-current', b.dataset.tab === t ? 'page' : 'false'));
+    document.querySelectorAll('.tabpage').forEach(p => { p.hidden = p.dataset.page !== t; });
+    document.querySelector('.col-main').hidden = t === 'rec';
+    if (t === 'set') showGoalForm();
+    if (t === 'sum') renderChart();
+    if (wideMQ.matches) document.querySelector('.col-main').scrollTop = 0; else window.scrollTo(0, 0);
+  }
+  $('tabbar').addEventListener('click', e => { const b = e.target.closest('button[data-tab]'); if (b) showTab(b.dataset.tab); });
+  if (wideMQ.addEventListener) wideMQ.addEventListener('change', () => showTab(curTab));
+
+  /* ---- theme: auto / light / dark ---- */
+  const LS_THEME = 'tsum-coin-theme';
+  function applyTheme(th){
+    const root = document.documentElement;
+    if (th === 'light' || th === 'dark') root.setAttribute('data-theme', th); else root.removeAttribute('data-theme');
+    document.querySelectorAll('#themeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.th === (th || 'auto') ? 'true' : 'false'));
+    const dark = th === 'dark' || (th !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', dark ? '#0f1715' : '#f3f6f5'));
+  }
+  $('themeSeg').addEventListener('click', e => { const b = e.target.closest('button[data-th]'); if (!b) return; lsSet(LS_THEME, b.dataset.th); applyTheme(b.dataset.th); });
+  const darkMQ = window.matchMedia('(prefers-color-scheme: dark)');
+  if (darkMQ.addEventListener) darkMQ.addEventListener('change', () => applyTheme(lsGet(LS_THEME) || 'auto'));
+  applyTheme(lsGet(LS_THEME) || 'auto');
+  showTab(wideMQ.matches ? 'sum' : 'rec');
+
   goalReady = true;
-  showGoalForm(!goal);
+  showGoalForm();
   render(); updatePreview(); tick(); renderGoal();
 })();
 </script>
