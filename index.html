@@ -12,7 +12,9 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-180.png">
 <style>
-:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root{--top-extra:0px;color-scheme:light;padding-top:calc(env(safe-area-inset-top,0px) + var(--top-extra));padding-bottom:env(safe-area-inset-bottom,0px)}
+/* iPad home-screen app: the status bar (clock, battery) blurs what sits under it, so start the page below it */
+@media (display-mode: standalone) and (min-width:700px){:root{--top-extra:26px}}
 body{margin:0;font:14px/1.5 system-ui,-apple-system,sans-serif}
 img{max-width:100%}
 [hidden]{display:none!important}
@@ -90,7 +92,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-siz
   /* left and right scroll on their own; the page itself fits the screen */
   html,body{overflow:hidden}
   body{padding-block:20px 0}
-  .wrap{height:calc(100vh - 8px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));height:calc(100dvh - 8px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));grid-template-rows:auto auto minmax(0,1fr)}
+  .wrap{height:calc(100vh - 8px - var(--top-extra) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));height:calc(100dvh - 8px - var(--top-extra) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));grid-template-rows:auto auto minmax(0,1fr)}
   .col-side,.col-main{height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:2px 6px 0 2px;scrollbar-width:thin}
   .col-side::after,.col-main::after{content:"";flex:none;height:6px}
   /* the title hides while scrolling down and comes back when scrolling up */
@@ -102,7 +104,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-siz
   .wrap > .tabbar button{flex-direction:row;justify-content:center;gap:6px;font-size:14px;padding:8px 0}
   .wrap > .tabbar svg{width:20px;height:20px}
   .wrap > .tabbar button[aria-current="page"]{background:color-mix(in srgb,var(--teal) 12%,var(--surface))}
-  body{padding-bottom:0 !important}
+  html body{padding-bottom:0 !important}
   .wrap .col-side[hidden]{display:flex !important}
   .wrap.head-off > header{max-height:28px;padding-top:4px;margin-bottom:8px}
   .wrap.head-off > header .app-title{display:none}
