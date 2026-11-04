@@ -15,15 +15,18 @@ try{var t=localStorage.getItem("tsum-coin-theme");if(t==="light"||t==="dark")doc
 <style>
 :root{--top-extra:0px;color-scheme:light;padding-top:calc(env(safe-area-inset-top,0px) + var(--top-extra));padding-bottom:env(safe-area-inset-bottom,0px)}
 /* home-screen app (iPhone / iPad): the status bar (clock, battery) blurs what sits under it, so start the page below it */
-@media (display-mode: standalone){:root{--top-extra:9px}}
-:root.standalone{--top-extra:9px}
+@media (display-mode: standalone){:root{--top-extra:6px}}
+:root.standalone{--top-extra:6px}
+/* iPad (wider screens) needs a little more room under the status bar */
+@media (display-mode: standalone) and (min-width:700px){:root{--top-extra:12px}}
+@media (min-width:700px){:root.standalone{--top-extra:12px}}
 body{margin:0;font:14px/1.5 system-ui,-apple-system,sans-serif}
 img{max-width:100%}
 [hidden]{display:none!important}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '1.1', date: '2026/11/04' };
+window.APP_VERSION = { no: '1.2', date: '2026/11/04' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -365,6 +368,8 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
 .seg-wide{display:flex;width:100%}
 .seg-wide button{flex:1;padding:8px 6px;font-size:13px}
+.update-box{display:flex;flex-direction:column;align-items:center;gap:8px}
+.update-box .msg{margin:0;text-align:center}
 .app-version{margin:0;text-align:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .timer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted);font-weight:700}
 .timer b{font-family:var(--font-display);font-size:20px;color:var(--ink);font-variant-numeric:tabular-nums}
@@ -702,7 +707,11 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
     </div>
   </section>
 
-  <p class="app-version" id="appVersion"></p>
+  <section id="updateSec" class="update-box">
+    <p class="app-version" id="appVersion"></p>
+    <button class="btn" id="forceReload" type="button">最新版に更新（読み込み直す）</button>
+    <p class="msg" id="reloadMsg" aria-live="polite"></p>
+  </section>
   </div>
   </div>
 </div>
@@ -1741,6 +1750,21 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
   showTab(wideMQ.matches ? 'sum' : 'rec');
 
   { const v = window.APP_VERSION || {}; $('appVersion').textContent = `ツムツム コイン帳　バージョン ${v.no || '?'}（${v.date || ''}）`; }
+  // force a fresh copy of the app (home-screen apps can keep an old one even after closing)
+  $('forceReload').addEventListener('click', async () => {
+    const btn = $('forceReload'), m = $('reloadMsg'), cur = (window.APP_VERSION || {}).no || '?';
+    btn.disabled = true; m.textContent = '最新版を確認しています…';
+    try {
+      const r = await fetch(location.pathname + '?check=' + Date.now(), {cache: 'no-store'});
+      const t = await r.text();
+      const hit = t.match(/APP_VERSION = \{ no: '([^']+)'/);
+      const latest = hit ? hit[1] : null;
+      m.textContent = latest && latest !== cur ? `バージョン ${latest} があります。読み込み直します…` : `今のバージョン（${cur}）が最新です。念のため読み込み直します…`;
+    } catch(_) { m.textContent = '読み込み直します…'; }
+    setTimeout(() => location.replace(location.pathname + '?r=' + Date.now()), 700);
+  });
+  // tidy the address after a forced reload
+  if (/[?&]r=\d+/.test(location.search)) { try { history.replaceState(null, '', location.pathname); } catch(_) {} }
   goalReady = true;
   showGoalForm();
   render(); updatePreview(); tick(); renderGoal();
