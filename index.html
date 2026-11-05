@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.7', date: '2026/11/06 08:30' };
+window.APP_VERSION = { no: '2.9', date: '2026/11/06 08:47' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -453,9 +453,15 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
 .toast .btn{background:transparent;color:var(--coin);border-color:color-mix(in srgb,var(--coin) 60%,transparent);white-space:nowrap}
 @media (min-width:1100px){.toast{bottom:calc(env(safe-area-inset-bottom, 0px) + 24px)}}
 .hist-tools{gap:8px}
+.istat tbody tr{cursor:pointer}
+.istat tbody tr:hover td{background:color-mix(in srgb,var(--coin) 8%,transparent)}
+.istat tr.picked td{background:color-mix(in srgb,var(--coin) 16%,transparent)}
+.combo-edit{margin-top:10px;margin-bottom:0}
 .istat td.nm{white-space:normal;min-width:7.5em;font-weight:700}
 .istat td.best{color:var(--teal);font-weight:800}
 .istat tr.top td{background:color-mix(in srgb,var(--teal) 9%,transparent)}
+.csv-note{margin:0;font-size:12px}
+.csv-note b{color:var(--danger)}
 .update-box{display:flex;flex-direction:column;align-items:center;gap:8px}
 .update-box .msg{margin:0;text-align:center}
 .app-version{margin:0;text-align:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -672,6 +678,16 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     <h2>アイテムの組み合わせごとの成績</h2>
     <div class="list" id="itemStats"></div>
     <p class="msg" id="itemStatsNote" style="margin:8px 2px 0"></p>
+    <div class="bulk combo-edit" id="comboEdit" hidden>
+      <div class="ed-head"><b id="comboTitle"></b></div>
+      <p class="msg" style="margin:0">選んだ組み合わせの記録が、日付に関係なくすべて変わります。アイテム代は、選んだアイテムの今の値段の合計になります（金額を直接入れることもできます）。</p>
+      <div class="field"><label for="comboCost">アイテム代</label><input id="comboCost" inputmode="numeric" autocomplete="off" placeholder="アイテムを選んでください"><div class="chips" id="comboItems"></div></div>
+      <p class="err" id="comboErr" hidden></p>
+      <div class="ed-actions">
+        <button class="btn primary" id="comboApply" type="button">まとめて変更</button>
+        <button class="btn" id="comboCancel" type="button">やめる</button>
+      </div>
+    </div>
   </section>
 
   <section id="secCal">
@@ -874,6 +890,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
         <label class="btn" for="loadFile" style="cursor:pointer">ファイルから読み込み</label>
         <input id="loadFile" type="file" accept=".json,application/json,text/plain" hidden>
       </div>
+      <p class="msg csv-note">※「表計算用（CSV）で保存」は、ExcelやGoogleスプレッドシートで記録を見る・集計するためのファイルです。<b>バックアップには使えません</b>（「ファイルから読み込み」で戻せません）。バックアップには「ファイルに保存」を使ってください。</p>
       <p class="msg" id="ioMsg" aria-live="polite"></p>
       <details id="textBackup">
         <summary class="msg" style="cursor:pointer">ファイルが使えないとき（文字でコピー）</summary>
@@ -1906,7 +1923,9 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     if (Array.isArray(x.items) && x.items.length) return ITEM_ORDER.filter(k => x.items.includes(k)).map(k => ITEM_LABEL[k]).join('＋');
     return costOf(x) > 0 ? '（アイテム不明）' : 'アイテムなし';
   }
+  let itemList = [], comboSel = null;
   function renderItemStats(list){
+    itemList = list;
     const g = new Map();
     for (const x of list){
       const k = comboOf(x), d = g.get(k) || {n:0, earn:0, cost:0, play:0, dur:0, durNet:0};
@@ -1922,12 +1941,42 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     let h = '<table class="istat"><thead><tr><th>組み合わせ</th><th>回数</th><th>平均獲得</th><th>平均純利益</th><th>平均倍率</th><th>1時間あたり</th></tr></thead><tbody>';
     for (const [k, d] of rows){
       const avgNet = (d.earn - d.cost) / d.n;
-      h += `<tr${k === bestK ? ' class="top"' : ''}><td class="nm">${esc(k)}</td><td>${d.n}</td><td>${fmt(d.earn / d.n)}</td><td class="n${avgNet < 0 ? ' neg' : ''}${k === bestK ? ' best' : ''}">${sfmt(avgNet)}</td><td class="x">×${(d.earn / d.play).toFixed(2)}</td><td>${d.dur ? sfmt(d.durNet / d.dur * 3600) : '—'}</td></tr>`;
+      h += `<tr class="${k === bestK ? 'top' : ''}${k === comboSel ? ' picked' : ''}" data-combo="${esc(k)}" tabindex="0" title="タップすると、この組み合わせの記録をまとめて変更できます"><td class="nm">${esc(k)}</td><td>${d.n}</td><td>${fmt(d.earn / d.n)}</td><td class="n${avgNet < 0 ? ' neg' : ''}${k === bestK ? ' best' : ''}">${sfmt(avgNet)}</td><td class="x">×${(d.earn / d.play).toFixed(2)}</td><td>${d.dur ? sfmt(d.durNet / d.dur * 3600) : '—'}</td></tr>`;
     }
     $('itemStats').innerHTML = h + '</tbody></table>';
-    $('itemStatsNote').textContent = (bestK ? `平均純利益がいちばん多いのは「${bestK}」です（3回以上プレイした組み合わせの中で）。` : '')
+    $('itemStatsNote').textContent = (bestK ? `平均純利益がいちばん多いのは「${bestK}」です（3回以上プレイした組み合わせの中で）。` : '') + '行をタップすると、その組み合わせの記録をまとめて直せます。'
       + (g.has('（アイテム不明）') ? '「アイテム不明」は、どのアイテムを使ったか記録される前のプレイです。' : '');
   }
+
+  /* ---- change the items of every record in one combination ---- */
+  const comboPick = makePicker('comboItems', 'comboCost', 'アイテムなし');
+  function openCombo(k){
+    const n = itemList.filter(x => comboOf(x) === k).length; if (!n) return;
+    comboSel = k;
+    $('comboTitle').textContent = `「${k}」の記録 ${n}件をまとめて変更`;
+    comboPick.reset([], null); $('comboErr').hidden = true; $('comboEdit').hidden = false;
+    renderItemStats(itemList);
+    $('comboEdit').scrollIntoView({behavior: 'smooth', block: 'nearest'});
+  }
+  function closeCombo(){ comboSel = null; $('comboEdit').hidden = true; renderItemStats(itemList); }
+  $('itemStats').addEventListener('click', e => { const tr = e.target.closest('tr[data-combo]'); if (tr) openCombo(tr.dataset.combo); });
+  $('itemStats').addEventListener('keydown', e => { if (e.key === 'Enter'){ const tr = e.target.closest('tr[data-combo]'); if (tr) openCombo(tr.dataset.combo); } });
+  $('comboCancel').addEventListener('click', closeCombo);
+  $('comboApply').addEventListener('click', () => {
+    const cost = toInt($('comboCost').value);
+    if (!comboPick.used && isNaN(cost)){ $('comboErr').textContent = 'アイテムを選ぶか、アイテム代を入れてください。'; $('comboErr').hidden = false; return; }
+    const ids = itemList.filter(x => comboOf(x) === comboSel).map(x => x.id), set = new Set(ids);
+    if (!ids.length) return closeCombo();
+    const from = comboSel;
+    remember(`「${from}」の${ids.length}件を変更しました`, ids);
+    for (const x of plays){
+      if (!set.has(x.id)) continue;
+      x.cost = isNaN(cost) ? 0 : cost;
+      if (comboPick.used && comboPick.set.size) x.items = [...comboPick.set]; else delete x.items;
+    }
+    comboSel = null; $('comboEdit').hidden = true;
+    save(); render();
+  });
 
   /* ---- backup ---- */
   const io = $('io'), ioMsg = $('ioMsg');
@@ -2300,7 +2349,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     const m = $('prefSaved'); m.hidden = false; clearTimeout(saveSettings.t); saveSettings.t = setTimeout(() => { m.hidden = true; }, 2000);
   }
   function applyAllSettings(){
-    applySettingsVars(); applyPrices(); readItemDefs(); edPick.build(); bulkPick.build();
+    applySettingsVars(); applyPrices(); readItemDefs(); edPick.build(); bulkPick.build(); comboPick.build();
     let moved = 0; for (const x of plays){ const nd = dayOf(new Date(x.at)); if (x.day !== nd){ x.day = nd; moved++; } }
     if (moved) save();
     lastDay = dayKey(nowL());
