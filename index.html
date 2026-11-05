@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.0', date: '2026/11/05' };
+window.APP_VERSION = { no: '2.1', date: '2026/11/05' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -443,6 +443,12 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
 .gate-check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--muted)}
 .gate-check input{width:18px;height:18px;accent-color:var(--teal)}
 html.gate-open,html.gate-open body{overflow:hidden !important}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom, 0px) + 92px);z-index:60;
+  display:flex;align-items:center;gap:12px;max-width:calc(100% - 32px);padding:10px 10px 10px 16px;border-radius:16px;
+  background:var(--ink);color:var(--bg);font-size:14px;font-weight:700;box-shadow:0 12px 30px -10px rgba(0,0,0,.45)}
+.toast .btn{background:transparent;color:var(--coin);border-color:color-mix(in srgb,var(--coin) 60%,transparent);white-space:nowrap}
+@media (min-width:1100px){.toast{bottom:calc(env(safe-area-inset-bottom, 0px) + 24px)}}
+.hist-tools{gap:8px}
 .update-box{display:flex;flex-direction:column;align-items:center;gap:8px}
 .update-box .msg{margin:0;text-align:center}
 .app-version{margin:0;text-align:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -680,7 +686,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   <section id="secHist">
     <button class="hist-toggle" id="histToggle" type="button" aria-expanded="false" aria-controls="histBody"><span class="chev" aria-hidden="true">▸</span><span>プレイ履歴</span><span class="hist-count" id="histCount"></span><span class="hist-hint">タップで表示</span></button>
     <div id="histBody" hidden>
-    <div class="hist-tools"><button class="btn" id="selToggle" type="button">まとめて選択</button></div>
+    <div class="hist-tools"><button class="btn" id="undoBtn" type="button" hidden>元に戻す</button><button class="btn" id="selToggle" type="button">まとめて選択</button></div>
     <div class="bulk" id="bulk" hidden>
       <div class="ed-head"><b id="bulkCount">0件選択中</b><button class="btn" id="bulkAll" type="button">表示中をすべて選択</button></div>
       <p class="msg">変えたい項目だけ入力してください。空欄の項目は変更しません。</p>
@@ -885,6 +891,8 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   </div>
 </div>
 
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastText"></span><button type="button" class="btn" id="toastUndo">元に戻す</button></div>
 
 <div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle" hidden>
   <form class="gate-card" id="gateForm" novalidate>
@@ -1741,6 +1749,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     const cost = toInt($('bulkCost').value);
     const fail = t => { $('bulkErr').textContent = t; $('bulkErr').hidden = false; };
     if (!ch && isNaN(cost)) return fail('変更する項目を1つ以上入力してください。');
+    remember(`${selected.size}件の記録をまとめて変更しました`, [...selected]);
     for (const x of plays){
       if (!selected.has(x.id)) continue;
       if (ch){ if (ch === NONE) delete x.chara; else x.chara = ch; }
@@ -1775,6 +1784,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     const mErr = $('edMult').value.trim() && !(toMult($('edMult').value) >= 1);
     if (!err && mErr){ $('edErr').textContent = '倍率は「1.3」のように1.0以上の数字で入れてください。'; $('edErr').hidden = false; return; }
     if (err){ $('edErr').textContent = err; $('edErr').hidden = false; return; }
+    remember('記録を変更しました', [x.id]);
     if (edMultTouched) x.est = true;
     else if (p !== x.play) delete x.est;
     if (edPick.used) { if (edPick.set.size) x.items = [...edPick.set]; else delete x.items; }
@@ -1793,8 +1803,47 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       setTimeout(() => { if (d.classList.contains('armed')) resetDel(); }, 3000);
       return;
     }
+    remember('記録を削除しました', [editingId]);
     plays = plays.filter(x => x.id !== editingId); save(); closeEditor();
   });
+
+  /* ---- undo for edits and deletions (kept while the app is open) ---- */
+  const undoStack = [];
+  function snapshotFor(ids){
+    const m = new Map();
+    for (const id of ids){ const x = plays.find(p => p.id === id); m.set(id, x ? JSON.parse(JSON.stringify(x)) : null); }
+    return m;
+  }
+  // call BEFORE changing the records; label says what happened
+  function remember(label, ids){
+    undoStack.push({label, before: snapshotFor(ids)});
+    if (undoStack.length > 20) undoStack.shift();
+    setTimeout(() => showToast(label), 0);
+  }
+  let toastTimer = null;
+  function showToast(label){
+    $('toastText').textContent = label; $('toastUndo').hidden = !undoStack.length;
+    $('toast').hidden = false; clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { $('toast').hidden = true; }, 8000);
+    $('undoBtn').hidden = !undoStack.length;
+    $('undoBtn').textContent = `元に戻す（${undoStack.length}）`;
+  }
+  function undo(){
+    const u = undoStack.pop(); if (!u) return;
+    for (const [id, rec] of u.before){
+      const i = plays.findIndex(p => p.id === id);
+      if (rec === null){ if (i >= 0) plays.splice(i, 1); }
+      else if (i >= 0) plays[i] = rec; else plays.push(rec);
+    }
+    save(); render();
+    const wd = $('wipeDone'); if (wd) wd.hidden = true;
+    $('undoBtn').hidden = !undoStack.length; $('undoBtn').textContent = `元に戻す（${undoStack.length}）`;
+    $('toastText').textContent = `「${u.label}」を元に戻しました`; $('toastUndo').hidden = !undoStack.length;
+    $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 5000);
+  }
+  $('toastUndo').addEventListener('click', undo);
+  $('undoBtn').addEventListener('click', undo);
+  window.__remember = remember;
 
   /* ---- backup ---- */
   const io = $('io'), ioMsg = $('ioMsg');
@@ -2210,6 +2259,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       const v = row.querySelector('input').value.trim();
       editingChara = null;
       if (v && v !== n){
+        window.__remember(`キャラ名を「${v}」に変更しました`, plays.filter(x => charaOf(x) === n).map(x => x.id));
         for (const x of plays) if (charaOf(x) === n) x.chara = v;
         settings.hiddenCharas = settings.hiddenCharas.filter(h => h !== n);
         if (charaIn.value.trim() === n){ charaIn.value = v; lsSet(LS_CHARA, v); }
@@ -2235,6 +2285,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   $('wipeCancel').addEventListener('click', () => { $('wipeConfirm').hidden = true; });
   $('wipeDo').addEventListener('click', () => {
     if (!$('wipeAgree').checked) return;
+    window.__remember(`${plays.length}件の記録を削除しました`, plays.map(x => x.id));
     const n = plays.length; plays = []; save();
     mark = 0; lsSet(LS_MARK, '0');
     $('wipeConfirm').hidden = true; $('wipeDone').textContent = `${n}件の記録を削除しました。`; $('wipeDone').hidden = false;
