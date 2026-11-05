@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '1.17', date: '2026/11/05' };
+window.APP_VERSION = { no: '2.0', date: '2026/11/05' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -1799,7 +1799,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   /* ---- backup ---- */
   const io = $('io'), ioMsg = $('ioMsg');
   const say = (t, cls) => { ioMsg.textContent = t; ioMsg.className = 'msg' + (cls ? ' ' + cls : ''); };
-  const exportText = () => JSON.stringify({app:'tsum-coin', v:2, exportedAt:new Date().toISOString(), plays, goal});
+  const exportText = () => JSON.stringify({app:'tsum-coin', v:3, exportedAt:new Date().toISOString(), plays, goal, settings: (window.__getSettings ? window.__getSettings() : undefined)});
 
   async function saveFile(){
     const now = new Date();
@@ -1846,10 +1846,18 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     let goalMsg = '';
     const g = data && data.goal;
     if (g && g.pulls >= 0 && g.held >= 0 && g.setAt && (!goal || Date.parse(g.setAt) > Date.parse(goal.setAt))){ goal = g; lsSet(LS_GOAL, JSON.stringify(goal)); showGoalForm(); goalMsg = 'BOXの目標も読み込みました。'; }
+    // settings (item prices, hidden characters, break time, ...): take the file's if it is newer
+    let setMsg = '';
+    const fs = data && data.settings, cur = window.__getSettings ? window.__getSettings() : null;
+    if (fs && typeof fs === 'object' && cur && (+fs.updatedAt || 0) > (cur.updatedAt || 0)){
+      window.__applyRemoteSettings(fs);
+      if (window.__pushSettings) window.__pushSettings();
+      setMsg = '設定も読み込みました。';
+    }
     save();
     ackBackup();   // just restored from a backup: count the next 300,000 from here
     render();
-    say((added ? `${added} 件を読み込みました。` : '新しい記録はありませんでした（すべて登録済み）。') + goalMsg, added || goalMsg ? 'ok' : '');
+    say((added ? `${added} 件を読み込みました。` : '新しい記録はありませんでした（すべて登録済み）。') + goalMsg + setMsg, added || goalMsg || setMsg ? 'ok' : '');
   }
   $('loadFile').addEventListener('change', e => {
     const f = e.target.files && e.target.files[0]; if (!f) return;
@@ -1885,7 +1893,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     firebase.initializeApp(CFG);
     const auth = firebase.auth(), db = firebase.firestore();
     try { db.enablePersistence({synchronizeTabs: true}).catch(() => {}); } catch(_) {}
-    let col = null, meta = null, unsub = [], synced = new Map(), ready = false;
+    let months = null, meta = null, unsub = [], synced = new Map(), ready = false;
     const errText = e => {
       const c = (e && e.code) || '';
       return c.includes('invalid-email') ? 'メールアドレスの形が正しくありません。'
@@ -1948,25 +1956,44 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
         .catch(err => msg(errText(err), true));
     });
 
-    // local changes -> cloud (only what changed since the last sync)
-    window.__pushPlays = () => {
-      if (!col || !ready) return;
-      const ops = [], now = new Map();
-      for (const x of plays){ const j = JSON.stringify(x); now.set(x.id, j); if (synced.get(x.id) !== j) ops.push(['set', x]); }
-      for (const id of synced.keys()) if (!now.has(id)) ops.push(['del', id]);
-      if (!ops.length) return;
-      synced = now;
+    // records are stored one document per month: users/{uid}/months/{YYYY-MM} = {plays: {id: record}}
+    // (opening the app reads ~1 document per month instead of 1 per play)
+    const canon = x => JSON.stringify(Object.keys(x).sort().reduce((o, k) => (o[k] = x[k], o), {}));
+    const monthOf = x => String(x.day || '').slice(0, 7) || 'unknown';
+    const FV = firebase.firestore.FieldValue, FP = firebase.firestore.FieldPath;
+    // queue writes: set or delete one record inside its month document (other records in that month are untouched)
+    function writeOps(ops){
       for (let i = 0; i < ops.length; i += 400){
         const batch = db.batch();
-        for (const [op, v] of ops.slice(i, i + 400)){ if (op === 'set') batch.set(col.doc(v.id), v); else batch.delete(col.doc(v)); }
+        for (const o of ops.slice(i, i + 400)){
+          const ref = months.doc(o.mk);
+          if (o.op === 'set') batch.set(ref, {plays: {[o.x.id]: o.x}}, {mergeFields: [new FP('plays', o.x.id)]});
+          else batch.set(ref, {plays: {[o.id]: FV.delete()}}, {merge: true});
+        }
         batch.commit().catch(() => setStatus('同期できません（電波を確認）', false, true));
       }
+    }
+    // local changes -> cloud (only what changed since the last sync)
+    window.__pushPlays = () => {
+      if (!months || !ready) return;
+      const ops = [], now = new Map();
+      for (const x of plays){
+        const j = canon(x), mk = monthOf(x), old = synced.get(x.id);
+        now.set(x.id, {j, mk});
+        if (!old || old.j !== j || old.mk !== mk){
+          if (old && old.mk !== mk) ops.push({op: 'del', mk: old.mk, id: x.id});   // moved to another month
+          ops.push({op: 'set', mk, x});
+        }
+      }
+      for (const [id, old] of synced) if (!now.has(id)) ops.push({op: 'del', mk: old.mk, id});
+      synced = now;
+      if (ops.length) writeOps(ops);
     };
     window.__pushSettings = () => { if (meta && ready && window.__getSettings) meta.set({settings: window.__getSettings()}, {merge: true}).catch(() => {}); };
     window.__pushGoal = v => { if (meta && ready) { try { meta.set({goal: JSON.parse(v)}, {merge: true}).catch(() => {}); } catch(_) {} } };
 
     function stop(){
-      unsub.forEach(f => f()); unsub = []; col = meta = null; ready = false; synced = new Map();
+      unsub.forEach(f => f()); unsub = []; months = meta = null; ready = false; synced = new Map();
       window.__syncing = false;
     }
     auth.onAuthStateChanged(async user => {
@@ -1982,16 +2009,32 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       show('syncOn'); $('syncWho').textContent = `${user.email} でログイン中`;
       setStatus('同期の準備中…');
       const home = db.collection('users').doc(user.uid);
-      col = home.collection('plays'); meta = home;
+      months = home.collection('months'); meta = home;
+      const flatten = docs => { const out = []; for (const d of docs){ const ps = (d.data() || {}).plays || {}; for (const id in ps){ const x = ps[id]; if (x && typeof x.id === 'string' && x.play > 0 && x.result > 0) out.push(x); } } return out; };
       try {
+        // one-time move from the old layout (one document per play) — also picks up anything an old version wrote later
+        const old = home.collection('plays');
+        const oldSnap = await old.limit(450).get();
+        if (!oldSnap.empty){
+          setStatus('データの形を新しくしています…');
+          let snap = oldSnap;
+          while (!snap.empty){
+            const recs = snap.docs.map(d => d.data()).filter(x => x && typeof x.id === 'string');
+            const batch = db.batch();
+            for (const x of recs) batch.set(months.doc(monthOf(x)), {plays: {[x.id]: x}}, {mergeFields: [new FP('plays', x.id)]});
+            await batch.commit();
+            const del = db.batch(); snap.docs.forEach(d => del.delete(d.ref)); await del.commit();
+            snap = await old.limit(450).get();
+          }
+        }
         // first time on this device: send records that only exist here
-        const snap = await col.get();
-        const remote = new Set(snap.docs.map(d => d.id));
-        synced = new Map(snap.docs.map(d => [d.id, JSON.stringify(d.data())]));
-        const mine = plays.filter(x => !remote.has(x.id));
-        for (let i = 0; i < mine.length; i += 400){
-          const batch = db.batch(); mine.slice(i, i + 400).forEach(x => batch.set(col.doc(x.id), x)); await batch.commit();
-          mine.slice(i, i + 400).forEach(x => synced.set(x.id, JSON.stringify(x)));
+        const msnap = await months.get();
+        const remote = flatten(msnap.docs);
+        synced = new Map(remote.map(x => [x.id, {j: canon(x), mk: monthOf(x)}]));
+        const mine = plays.filter(x => !synced.has(x.id));
+        if (mine.length){
+          writeOps(mine.map(x => ({op: 'set', mk: monthOf(x), x})));
+          mine.forEach(x => synced.set(x.id, {j: canon(x), mk: monthOf(x)}));
         }
       } catch(e){ setStatus('同期できません（電波を確認）', false, true); }
       ready = true;
@@ -2010,13 +2053,13 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       const onNet = () => { if (lastSnap) showState(lastSnap); };
       window.addEventListener('online', onNet); window.addEventListener('offline', onNet);
       unsub.push(() => { window.removeEventListener('online', onNet); window.removeEventListener('offline', onNet); });
-      unsub.push(col.onSnapshot({includeMetadataChanges: true}, snap => {
+      unsub.push(months.onSnapshot({includeMetadataChanges: true}, snap => {
         lastSnap = snap;
         showState(snap);
         if (!first && !snap.docChanges().length) return;   // only the sync state changed
         first = false;
-        plays = snap.docs.map(d => d.data()).filter(x => x && typeof x.id === 'string' && x.play > 0 && x.result > 0);
-        synced = new Map(plays.map(x => [x.id, JSON.stringify(x)]));
+        plays = flatten(snap.docs);
+        synced = new Map(plays.map(x => [x.id, {j: canon(x), mk: monthOf(x)}]));
         try { localStorage.setItem(LS, JSON.stringify(plays)); } catch(_) {}
         render();
       }, () => setStatus('同期できません（再ログインしてください）', false, true)));
