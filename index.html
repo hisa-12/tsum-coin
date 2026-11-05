@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.9', date: '2026/11/06 08:47' };
+window.APP_VERSION = { no: '2.10', date: '2026/11/06 08:51' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -677,7 +677,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   <section id="secItems">
     <h2>アイテムの組み合わせごとの成績</h2>
     <div class="list" id="itemStats"></div>
-    <p class="msg" id="itemStatsNote" style="margin:8px 2px 0"></p>
+    <p class="msg" id="itemStatsNote" style="margin:8px 2px 0;white-space:pre-line;display:flex;flex-direction:column;gap:4px"></p>
     <div class="bulk combo-edit" id="comboEdit" hidden>
       <div class="ed-head"><b id="comboTitle"></b></div>
       <p class="msg" style="margin:0">選んだ組み合わせの記録が、日付に関係なくすべて変わります。アイテム代は、選んだアイテムの今の値段の合計になります（金額を直接入れることもできます）。</p>
@@ -1944,8 +1944,12 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       h += `<tr class="${k === bestK ? 'top' : ''}${k === comboSel ? ' picked' : ''}" data-combo="${esc(k)}" tabindex="0" title="タップすると、この組み合わせの記録をまとめて変更できます"><td class="nm">${esc(k)}</td><td>${d.n}</td><td>${fmt(d.earn / d.n)}</td><td class="n${avgNet < 0 ? ' neg' : ''}${k === bestK ? ' best' : ''}">${sfmt(avgNet)}</td><td class="x">×${(d.earn / d.play).toFixed(2)}</td><td>${d.dur ? sfmt(d.durNet / d.dur * 3600) : '—'}</td></tr>`;
     }
     $('itemStats').innerHTML = h + '</tbody></table>';
-    $('itemStatsNote').textContent = (bestK ? `平均純利益がいちばん多いのは「${bestK}」です（3回以上プレイした組み合わせの中で）。` : '') + '行をタップすると、その組み合わせの記録をまとめて直せます。'
-      + (g.has('（アイテム不明）') ? '「アイテム不明」は、どのアイテムを使ったか記録される前のプレイです。' : '');
+    // one sentence per line
+    $('itemStatsNote').textContent = [
+      bestK ? `平均純利益がいちばん多いのは「${bestK}」です（3回以上プレイした組み合わせの中で）。` : '',
+      '行をタップすると、その組み合わせの記録をまとめて直せます。',
+      g.has('（アイテム不明）') ? '「アイテム不明」は、どのアイテムを使ったか記録される前のプレイです。' : '',
+    ].filter(Boolean).join('\n');
   }
 
   /* ---- change the items of every record in one combination ---- */
