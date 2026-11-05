@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '1.12', date: '2026/11/05' };
+window.APP_VERSION = { no: '1.13', date: '2026/11/05' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -1552,15 +1552,15 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       const dl = `${m}/${d}（${'日月火水木金土'[new Date(y,m-1,d).getDay()]}）`;
       if (days < 1){ cnt.innerHTML = `${dl}の期限を過ぎています`; cnt.classList.add('late'); }
       else { cnt.innerHTML = `${dl}まで あと <b>${days}</b> 日（今日を含む）`; cnt.classList.remove('late'); }
-      // each period's target is fixed when the period starts (today / this week Sun–Sat / this month),
-      // or from the moment the goal was set if that was later. Earnings inside the period don't move it.
+      // each period's target is fixed when the period starts (today / this week Sun–Sat / this month);
+      // earnings inside the period don't move it. Every record in the period counts, even ones from
+      // before the goal was (re)set, because "left now + earned since the period began" = what was left then.
       const deadlineEnd = new Date(y, m-1, d);
-      const setAtMs = Date.parse(goal.setAt) || 0;
-      const netFrom = ms => plays.reduce((acc, x) => { const t = Date.parse(x.at); return t >= ms && t > setAtMs ? acc + x.result - costOf(x) : acc; }, 0);
+      const netFrom = ms => plays.reduce((acc, x) => { const t = Date.parse(x.at); return t >= ms ? acc + x.result - costOf(x) : acc; }, 0);
       const dayStart = dt => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
       const daysIncl = (from, to) => Math.round((dayStart(to) - dayStart(from)) / 86400000) + 1;
       const period = (start, end) => {
-        const anchor = Math.max(start.getTime(), setAtMs);
+        const anchor = start.getTime();
         const aDate = new Date(anchor);
         const got = netFrom(anchor);                       // earned in this period so far
         const leftAtAnchor = left + got;                    // what was left when the period began
