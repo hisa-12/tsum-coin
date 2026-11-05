@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.5', date: '2026/11/05 23:43' };
+window.APP_VERSION = { no: '2.6', date: '2026/11/05 23:48' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -883,7 +883,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     <h2>記録をすべて削除</h2>
     <div class="backup pref danger-box">
       <p class="msg" style="margin:0">最初からやり直したいとき用です。BOXの目標と設定は消えません。消す前に「ファイルに保存」しておくのがおすすめです。</p>
-      <div><button class="btn danger" id="wipeStart" type="button">すべての記録を削除する…</button></div>
+      <div><button class="btn danger" id="wipeStart" type="button">すべての記録を削除する（次に確認が出ます）</button></div>
       <div id="wipeConfirm" class="wipe-confirm" hidden>
         <p class="msg bad" id="wipeText" style="margin:0"></p>
         <label class="wipe-check"><input type="checkbox" id="wipeAgree"> 消した記録は元に戻せないことを理解しました</label>
