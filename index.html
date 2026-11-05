@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '1.16', date: '2026/11/05' };
+window.APP_VERSION = { no: '1.17', date: '2026/11/05' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -332,6 +332,14 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 .cal-detail b{font-family:var(--font-display)}
 .cal-detail .t{width:100%;font-weight:700}
 .cal-detail .full{width:100%}
+.cal-detail .lb{font-size:12px;color:var(--muted);font-weight:700}
+.cal-detail .nv{font-family:var(--font-display);font-weight:800;font-size:17px;color:var(--ink);font-variant-numeric:tabular-nums}
+.cal-detail .nv.sm{font-size:15px}
+.cal-detail .nv.net{color:var(--teal)}
+.cal-detail .nv.neg{color:var(--danger)}
+.cal-detail .nv.x{color:var(--coin-deep)}
+.cal-detail .nv.pc{color:var(--coin-deep)}
+.cal-detail .nv.hitc{color:var(--teal)}
 .cal-d.hit .dv,.hitc{color:var(--teal)}
 .cal-d.hit{background:color-mix(in srgb,var(--teal) 12%,var(--bg))}
 .cal-w.hit{background:color-mix(in srgb,var(--teal) 24%,var(--surface))}
@@ -1525,7 +1533,13 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     const t = `${sm}/${sd}（${'日月火水木金土'[new Date(sy, sm-1, sd).getDay()]}）`;
     const gsel = d ? goalPeriod(new Date(sy, sm - 1, sd), new Date(sy, sm - 1, sd)) : null;
     $('calDetail').innerHTML = d
-      ? `<span class="t">${t}</span><span class="full">${d.n} プレイ</span><span class="full row"><span>獲得 <b>${fmt(d.earn)}</b></span><span>純利益 <b>${sfmt(d.earn - d.cost)}</b></span></span><span class="full row"><span>1プレイ平均獲得 ${fmt(d.earn / d.n)}</span><span>1プレイ平均純利益 ${sfmt((d.earn - d.cost) / d.n)}</span></span>${d.play ? `<span class="full">平均倍率 ×${(d.earn / d.play).toFixed(2)}</span>` : ''}${d.dur ? `<span class="full">時間 ${hm(d.dur)}</span>` : ''}` + (gsel ? `<span class="full">その日の目標 ${fmt(gsel.target)} → 達成率 <b class="${gsel.pct >= 100 ? 'hitc' : ''}">${Math.floor(gsel.pct)}%</b></span>` : '')
+      ? `<span class="t">${t}</span>`
+        + `<span class="full"><span class="nv">${d.n}</span> <span class="lb">プレイ</span></span>`
+        + `<span class="full row"><span><span class="lb">獲得</span> <span class="nv">${fmt(d.earn)}</span></span><span><span class="lb">純利益</span> <span class="nv net${d.earn - d.cost < 0 ? ' neg' : ''}">${sfmt(d.earn - d.cost)}</span></span></span>`
+        + `<span class="full row"><span><span class="lb">1プレイ平均獲得</span> <span class="nv sm">${fmt(d.earn / d.n)}</span></span><span><span class="lb">1プレイ平均純利益</span> <span class="nv sm">${sfmt((d.earn - d.cost) / d.n)}</span></span></span>`
+        + (d.play ? `<span class="full"><span class="lb">平均倍率</span> <span class="nv sm x">×${(d.earn / d.play).toFixed(2)}</span></span>` : '')
+        + (d.dur ? `<span class="full"><span class="lb">時間</span> <span class="nv sm">${hm(d.dur)}</span></span>` : '')
+        + (gsel ? `<span class="full"><span class="lb">その日の目標</span> <span class="nv sm">${fmt(gsel.target)}</span> <span class="lb">→ 達成率</span> <span class="nv ${gsel.pct >= 100 ? 'hitc' : 'pc'}">${Math.floor(gsel.pct)}%</span></span>` : '')
       : `<span class="t">${t}</span><span>記録なし</span>`;
     renderDays();
   }
