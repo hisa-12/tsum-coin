@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.1', date: '2026/11/05' };
+window.APP_VERSION = { no: '2.2', date: '2026/11/05 23:29' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -446,6 +446,8 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom, 0px) + 92px);z-index:60;
   display:flex;align-items:center;gap:12px;max-width:calc(100% - 32px);padding:10px 10px 10px 16px;border-radius:16px;
   background:var(--ink);color:var(--bg);font-size:14px;font-weight:700;box-shadow:0 12px 30px -10px rgba(0,0,0,.45)}
+.toast{touch-action:none;cursor:grab;transition:opacity .2s}
+.toast.dragging{transition:none}
 .toast .btn{background:transparent;color:var(--coin);border-color:color-mix(in srgb,var(--coin) 60%,transparent);white-space:nowrap}
 @media (min-width:1100px){.toast{bottom:calc(env(safe-area-inset-bottom, 0px) + 24px)}}
 .hist-tools{gap:8px}
@@ -1842,6 +1844,25 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 5000);
   }
   $('toastUndo').addEventListener('click', undo);
+  // swipe the notice sideways or down to close it
+  (() => {
+    const t = $('toast');
+    let sx = null, sy = 0, dx = 0, dy = 0;
+    const put = () => { t.style.transform = `translateX(calc(-50% + ${dx}px)) translateY(${Math.max(0, dy)}px)`; t.style.opacity = String(Math.max(0.2, 1 - Math.max(Math.abs(dx) / 160, Math.max(0, dy) / 90))); };
+    const reset = () => { t.style.transform = ''; t.style.opacity = ''; t.classList.remove('dragging'); };
+    t.addEventListener('pointerdown', e => {
+      if (e.target.closest('button')) return;
+      sx = e.clientX; sy = e.clientY; dx = dy = 0; t.classList.add('dragging');
+      try { t.setPointerCapture(e.pointerId); } catch(_) {}
+    });
+    t.addEventListener('pointermove', e => { if (sx === null) return; dx = e.clientX - sx; dy = e.clientY - sy; put(); });
+    const end = () => {
+      if (sx === null) return; sx = null;
+      if (Math.abs(dx) > 60 || dy > 36){ clearTimeout(toastTimer); t.hidden = true; }
+      reset();
+    };
+    t.addEventListener('pointerup', end); t.addEventListener('pointercancel', end);
+  })();
   $('undoBtn').addEventListener('click', undo);
   window.__remember = remember;
 
