@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '1.14', date: '2026/11/05' };
+window.APP_VERSION = { no: '1.16', date: '2026/11/05' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -332,6 +332,9 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 .cal-detail b{font-family:var(--font-display)}
 .cal-detail .t{width:100%;font-weight:700}
 .cal-detail .full{width:100%}
+.cal-d.hit .dv,.hitc{color:var(--teal)}
+.cal-d.hit{background:color-mix(in srgb,var(--teal) 12%,var(--bg))}
+.cal-w.hit{background:color-mix(in srgb,var(--teal) 24%,var(--surface))}
 .cal-detail .row{display:flex;flex-wrap:wrap;gap:2px 14px}
 .cal-detail .row > span{white-space:nowrap}
 .chart-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 12px 10px;margin-top:10px;display:flex;flex-direction:column;gap:6px}
@@ -650,6 +653,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       <div class="seg" id="calMode" role="group" aria-label="表示する値">
         <button type="button" data-m="earn" aria-pressed="false">獲得</button>
         <button type="button" data-m="net" aria-pressed="true">純利益</button>
+        <button type="button" data-m="pct" aria-pressed="false">達成率</button>
       </div>
     </div>
     <div class="cal">
@@ -1265,7 +1269,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
 
   /* ---- calendar: day / week / month totals ---- */
   const LS_CALMODE = 'tsum-coin-calmode';
-  let calMode = lsGet(LS_CALMODE) === 'earn' ? 'earn' : 'net';
+  let calMode = ['earn','net','pct'].includes(lsGet(LS_CALMODE)) ? lsGet(LS_CALMODE) : 'net';
   const nowD = new Date();
   let calY = nowD.getFullYear(), calM = nowD.getMonth();
   let calSel = dayKey(nowD);
@@ -1276,7 +1280,24 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     for (const x of list){ const d = m.get(x.day) || {n:0, earn:0, cost:0, dur:0, play:0}; d.n++; d.earn += x.result; d.play += x.play; d.cost += costOf(x); if (hasDur(x)) d.dur += x.dur; m.set(x.day, d); }
     return m;
   }
-  const valOf = d => d ? (calMode === 'net' ? d.earn - d.cost : d.earn) : 0;
+  const valOf = d => d ? (calMode === 'earn' ? d.earn : d.earn - d.cost) : 0;
+  // achievement vs. the BOX goal pace for a past period (same rule as the goal card: target fixed at the period start)
+  function goalPeriod(start, end){
+    if (typeof goal === 'undefined' || !goal || !goal.deadline) return null;
+    const [gy, gm, gd] = goal.deadline.split('-').map(Number), dl = new Date(gy, gm - 1, gd);
+    const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+    if (start > t0) return null;
+    const leftNow = goal.pulls * BOX_PRICE - (goal.held + netSince(goal.setAt));
+    const sMs = start.getTime(), eMs = new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1).getTime();
+    let since = 0, got = 0;
+    for (const x of plays){ const t = Date.parse(x.at); if (t >= sMs){ const v = x.result - costOf(x); since += v; if (t < eMs) got += v; } }
+    const leftAt = leftNow + since;
+    const daysToGoal = Math.round((dl - start) / 86400000) + 1;
+    if (daysToGoal < 1 || !(leftAt > 0)) return null;
+    const span = Math.min(Math.round((end - start) / 86400000) + 1, daysToGoal);
+    const target = Math.ceil(leftAt / daysToGoal * span);
+    return {target, got, pct: got / target * 100};
+  }
   /* ---- net profit bar chart: day / week / month / year ---- */
   const LS_RANGE = 'tsum-coin-chart-range', LS_UNIT = 'tsum-coin-chart-unit';
   let chartRange = [7,14,30].includes(+lsGet(LS_RANGE)) ? +lsGet(LS_RANGE) : 14;
@@ -1458,13 +1479,19 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     const today = dayKey(new Date());
     $('calTitle').textContent = `${calY}年${calM + 1}月`;
     document.querySelectorAll('#calMode button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === calMode ? 'true' : 'false'));
-    const label = calMode === 'net' ? '純利益' : '獲得';
+    const label = calMode === 'earn' ? '獲得' : '純利益';
+    const pctMode = calMode === 'pct';
+    const hasGoal = typeof goal !== 'undefined' && goal && goal.deadline;
 
     // month total
     let mSum = 0, mDays = 0, mN = 0;
     const last = new Date(calY, calM + 1, 0).getDate();
     for (let i = 1; i <= last; i++){ const d = agg.get(dayKey(new Date(calY, calM, i))); if (d){ mSum += valOf(d); mDays++; mN += d.n; } }
-    $('calMonthSum').innerHTML = mN
+    const gm = pctMode ? goalPeriod(new Date(calY, calM, 1), new Date(calY, calM, last)) : null;
+    $('calMonthSum').innerHTML = pctMode
+      ? (gm ? `<div class="ms-total">月の達成率 <strong class="${gm.pct >= 100 ? 'hitc' : ''}">${Math.floor(gm.pct)}%</strong></div><div class="ms-row"><span>月の目標<b>${fmt(gm.target)}</b></span><span>月の純利益<b>${sfmt(gm.got)}</b></span></div>`
+          : hasGoal ? 'この月の達成率はまだ出せません' : 'BOXの目標で「完売したい日」を設定すると、達成率が出ます')
+      : mN
       ? `<div class="ms-total">月の${label} <strong>${sfmt(mSum)}</strong> 枚</div>`
         + `<div class="ms-row"><span>プレイ日数<b>${mDays}日</b></span><span>プレイ回数<b>${mN}回</b></span><span>1日あたりの${label}<b>${sfmt(mSum / mDays)}</b></span></div>`
       : `この月の記録はありません`;
@@ -1479,10 +1506,15 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       for (let i = 0; i < 7; i++){
         const k = dayKey(cur), d = agg.get(k), v = valOf(d);
         if (d){ wSum += v; wAny = true; }
-        const cls = ['cal-d', cur.getMonth() !== calM ? 'out' : '', k === today ? 'today' : '', k === calSel ? 'sel' : '', d && v < 0 ? 'neg' : ''].filter(Boolean).join(' ');
-        h += `<button type="button" class="${cls}" data-k="${k}" aria-label="${cur.getMonth()+1}月${cur.getDate()}日 ${d ? label + ' ' + fmt(v) + '枚' : '記録なし'}"><span class="dn">${cur.getDate()}</span><span class="dv">${d ? compact(v) : ''}</span></button>`;
+        const gp = pctMode && d ? goalPeriod(cur, cur) : null;
+        const cls = ['cal-d', cur.getMonth() !== calM ? 'out' : '', k === today ? 'today' : '', k === calSel ? 'sel' : '', !pctMode && d && v < 0 ? 'neg' : '', gp && gp.pct >= 100 ? 'hit' : ''].filter(Boolean).join(' ');
+        h += `<button type="button" class="${cls}" data-k="${k}" aria-label="${cur.getMonth()+1}月${cur.getDate()}日 ${d ? label + ' ' + fmt(v) + '枚' : '記録なし'}"><span class="dn">${cur.getDate()}</span><span class="dv">${pctMode ? (gp ? Math.floor(gp.pct) + '%' : '') : d ? compact(v) : ''}</span></button>`;
         cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 1);
       }
+      if (pctMode){
+        const ws = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() - 7), gw = goalPeriod(ws, new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 6));
+        h += `<div class="cal-w${gw && gw.pct >= 100 ? ' hit' : ''}"><span class="dn">週</span><span class="dv">${gw ? Math.floor(gw.pct) + '%' : '—'}</span></div>`;
+      } else
       h += `<div class="cal-w"><span class="dn">週</span><span class="dv">${wAny ? compact(wSum) : '—'}</span></div>`;
     }
     $('calGrid').innerHTML = h;
@@ -1491,8 +1523,9 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     const d = agg.get(calSel);
     const [sy, sm, sd] = calSel.split('-').map(Number);
     const t = `${sm}/${sd}（${'日月火水木金土'[new Date(sy, sm-1, sd).getDay()]}）`;
+    const gsel = d ? goalPeriod(new Date(sy, sm - 1, sd), new Date(sy, sm - 1, sd)) : null;
     $('calDetail').innerHTML = d
-      ? `<span class="t">${t}</span><span class="full">${d.n} プレイ</span><span class="full row"><span>獲得 <b>${fmt(d.earn)}</b></span><span>純利益 <b>${sfmt(d.earn - d.cost)}</b></span></span><span class="full row"><span>1プレイ平均獲得 ${fmt(d.earn / d.n)}</span><span>1プレイ平均純利益 ${sfmt((d.earn - d.cost) / d.n)}</span></span>${d.play ? `<span class="full">平均倍率 ×${(d.earn / d.play).toFixed(2)}</span>` : ''}${d.dur ? `<span class="full">時間 ${hm(d.dur)}</span>` : ''}`
+      ? `<span class="t">${t}</span><span class="full">${d.n} プレイ</span><span class="full row"><span>獲得 <b>${fmt(d.earn)}</b></span><span>純利益 <b>${sfmt(d.earn - d.cost)}</b></span></span><span class="full row"><span>1プレイ平均獲得 ${fmt(d.earn / d.n)}</span><span>1プレイ平均純利益 ${sfmt((d.earn - d.cost) / d.n)}</span></span>${d.play ? `<span class="full">平均倍率 ×${(d.earn / d.play).toFixed(2)}</span>` : ''}${d.dur ? `<span class="full">時間 ${hm(d.dur)}</span>` : ''}` + (gsel ? `<span class="full">その日の目標 ${fmt(gsel.target)} → 達成率 <b class="${gsel.pct >= 100 ? 'hitc' : ''}">${Math.floor(gsel.pct)}%</b></span>` : '')
       : `<span class="t">${t}</span><span>記録なし</span>`;
     renderDays();
   }
@@ -1584,7 +1617,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
         if (!(p.target > 0)){ el.innerHTML = ''; el.className = 'prog'; return; }
         const pct = Math.max(0, p.got / p.target * 100), done = pct >= 100;
         el.className = 'prog' + (done ? ' done' : '');
-        el.innerHTML = `<div class="pl"><span>${label}</span><span>${sfmt(p.got)}</span></div><div class="br"><div class="mb"><i style="width:${Math.min(100, pct).toFixed(1)}%"></i></div><b>${done ? '達成' : Math.floor(pct) + '%'}</b></div>`;
+        el.innerHTML = `<div class="pl"><span>${label}</span><span>${sfmt(p.got)}</span></div><div class="br"><div class="mb"><i style="width:${Math.min(100, pct).toFixed(1)}%"></i></div><b>${Math.floor(pct)}%</b></div>`;
       };
       if (days >= 1 && (left > 0 || pD.target > 0)){
         const show = (id, p) => { $(id).textContent = p.target > 0 ? fmt(p.target) : '達成'; };
