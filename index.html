@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.2', date: '2026/11/05 23:29' };
+window.APP_VERSION = { no: '2.4', date: '2026/11/05 23:37' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -402,6 +402,7 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
 .pref-row{display:flex;flex-direction:column;gap:8px}
 .pref-k{font-size:13px;font-weight:700;color:var(--muted)}
 .pref-num{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--muted);font-weight:700}
+.pref-sel{font:inherit;font-weight:700;font-size:16px;padding:7px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)}
 .pref-num input,.price-grid input,.chara-row input{font:inherit;font-weight:700;font-size:16px;width:6em;padding:7px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
 .pref-num input:focus,.price-grid input:focus,.chara-row input:focus{outline:none;border-color:var(--coin)}
 .price-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
@@ -787,6 +788,16 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
         </div>
       </div>
       <div class="pref-row">
+        <span class="pref-k">1週間の始まりの曜日</span>
+        <div class="seg seg-wide" id="weekStartSeg" role="group" aria-label="1週間の始まりの曜日">
+          <button type="button" data-v="0">日</button><button type="button" data-v="1">月</button><button type="button" data-v="2">火</button><button type="button" data-v="3">水</button><button type="button" data-v="4">木</button><button type="button" data-v="5">金</button><button type="button" data-v="6">土</button>
+        </div>
+      </div>
+      <div class="pref-row">
+        <label class="pref-k" for="dayStart">1日の区切り（この時刻で日付が変わる）</label>
+        <div class="pref-num"><select id="dayStart" class="pref-sel"></select><span id="dayStartNote"></span></div>
+      </div>
+      <div class="pref-row">
         <label class="pref-k" for="breakMin">休憩とみなす時間（これを超えたらプレイ時間を記録しない）</label>
         <div class="pref-num"><input id="breakMin" inputmode="numeric" autocomplete="off"><span>分</span></div>
       </div>
@@ -954,6 +965,8 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       backupOn: o.backupOn !== false,
       backupStep: bs >= 10000 ? bs : 300000,
       startTab: ['rec','sum','hist','set'].includes(o.startTab) ? o.startTab : 'rec',
+      weekStart: Number.isInteger(+o.weekStart) && +o.weekStart >= 0 && +o.weekStart <= 6 ? +o.weekStart : 0,
+      dayStartHour: Number.isInteger(+o.dayStartHour) && +o.dayStartHour >= 0 && +o.dayStartHour <= 23 ? +o.dayStartHour : 0,
       hiddenCharas: Array.isArray(o.hiddenCharas) ? o.hiddenCharas.filter(x => typeof x === 'string').slice(0, 200) : [],
       updatedAt: +o.updatedAt || 0,
     };
@@ -961,6 +974,13 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   let settings = normSettings(null);
   try { settings = normSettings(JSON.parse(lsGet(LS_SET) || 'null')); } catch(_) {}
   function applySettingsVars(){ MAX_DUR = settings.breakMin * 60; STEP = settings.backupStep; }
+  // the "day" can start at any hour (e.g. 4:00): a play at 2:00 then counts for the previous day
+  const dayShiftMs = () => (settings.dayStartHour || 0) * 3600000;
+  const logicalDate = d => new Date(d.getTime() - dayShiftMs());
+  const nowL = () => logicalDate(new Date());
+  const dayOf = d => dayKey(logicalDate(d));
+  // days since the start of the week (the first weekday is chosen in the settings; 0 = Sunday)
+  const wkOff = d => (d.getDay() - (settings.weekStart || 0) + 7) % 7;
   applySettingsVars();
   function applyPrices(){
     document.querySelectorAll('#chips .chip.item').forEach(b => {
@@ -1142,7 +1162,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     if (!ok) return;
     const now = new Date();
     const es = elapsedSec();
-    const rec = {id: 'p' + now.getTime().toString(36) + Math.random().toString(36).slice(2,6), play:p, result:r, cost:c, at: now.toISOString(), day: dayKey(now)};
+    const rec = {id: 'p' + now.getTime().toString(36) + Math.random().toString(36).slice(2,6), play:p, result:r, cost:c, at: now.toISOString(), day: dayOf(now)};
     if (est) rec.est = true;
     if (items.size && c === itemCost(items)) rec.items = [...items];
     if (es > 0 && es <= MAX_DUR) rec.dur = Math.round(es);
@@ -1162,7 +1182,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   /* ---- render ---- */
   function render(){
     const all = plays.slice().sort((a,b) => b.at < a.at ? -1 : 1);
-    const today = dayKey(new Date());
+    const today = dayKey(nowL());
     const sum = (arr, f) => arr.reduce((s,x) => s + f(x), 0);
 
     // characters, most recently used first
@@ -1288,7 +1308,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   /* ---- calendar: day / week / month totals ---- */
   const LS_CALMODE = 'tsum-coin-calmode';
   let calMode = ['earn','net','pct'].includes(lsGet(LS_CALMODE)) ? lsGet(LS_CALMODE) : 'net';
-  const nowD = new Date();
+  const nowD = nowL();
   let calY = nowD.getFullYear(), calM = nowD.getMonth();
   let calSel = dayKey(nowD);
   let calPlays = [];
@@ -1303,12 +1323,12 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   function goalPeriod(start, end){
     if (typeof goal === 'undefined' || !goal || !goal.deadline) return null;
     const [gy, gm, gd] = goal.deadline.split('-').map(Number), dl = new Date(gy, gm - 1, gd);
-    const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+    const tn = nowL(), t0 = new Date(tn.getFullYear(), tn.getMonth(), tn.getDate());
     if (start > t0) return null;
     const leftNow = goal.pulls * BOX_PRICE - (goal.held + netSince(goal.setAt));
-    const sMs = start.getTime(), eMs = new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1).getTime();
+    const sK = dayKey(start), eK = dayKey(end);
     let since = 0, got = 0;
-    for (const x of plays){ const t = Date.parse(x.at); if (t >= sMs){ const v = x.result - costOf(x); since += v; if (t < eMs) got += v; } }
+    for (const x of plays){ if (x.day >= sK){ const v = x.result - costOf(x); since += v; if (x.day <= eK) got += v; } }
     const leftAt = leftNow + since;
     const daysToGoal = Math.round((dl - start) / 86400000) + 1;
     if (daysToGoal < 1 || !(leftAt > 0)) return null;
@@ -1330,9 +1350,9 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   };
   // start date of the bucket `back` units before the current one
   function bucketStart(unit, back){
-    const n = new Date(), y = n.getFullYear(), m = n.getMonth(), d = n.getDate();
+    const n = nowL(), y = n.getFullYear(), m = n.getMonth(), d = n.getDate();
     if (unit === 'day') return new Date(y, m, d - back);
-    if (unit === 'week') return new Date(y, m, d - n.getDay() - back * 7);   // weeks start on Sunday, like the calendar
+    if (unit === 'week') return new Date(y, m, d - wkOff(n) - back * 7);   // weeks start on the chosen weekday, like the calendar
     if (unit === 'month') return new Date(y, m - back, 1);
     return new Date(y - back, 0, 1);
   }
@@ -1346,7 +1366,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   function bucketKey(unit, dayStr){
     const [y, m, d] = dayStr.split('-').map(Number);
     if (unit === 'day') return dayStr;
-    if (unit === 'week'){ const dt = new Date(y, m - 1, d); return dayKey(new Date(y, m - 1, d - dt.getDay())); }
+    if (unit === 'week'){ const dt = new Date(y, m - 1, d); return dayKey(new Date(y, m - 1, d - wkOff(dt))); }
     if (unit === 'month') return `${y}-${pad(m)}`;
     return String(y);
   }
@@ -1463,7 +1483,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   $('chart').addEventListener('click', e => { const r = e.target.closest('.hit'); if (!r) return; chartSel = chartSel === r.dataset.k ? '' : r.dataset.k; renderChart(); });
 
   function renderDays(){
-    const today = dayKey(new Date());
+    const today = dayKey(nowL());
     const prefix = `${calY}-${pad(calM + 1)}-`;
     const byDay = new Map();
     for (const x of calPlays){
@@ -1494,7 +1514,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   function renderCalendar(list){
     if (list) calPlays = list;
     const agg = dayAgg(calPlays);
-    const today = dayKey(new Date());
+    const today = dayKey(nowL());
     $('calTitle').textContent = `${calY}年${calM + 1}月`;
     document.querySelectorAll('#calMode button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === calMode ? 'true' : 'false'));
     const label = calMode === 'earn' ? '獲得' : '純利益';
@@ -1515,9 +1535,9 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       : `この月の記録はありません`;
 
     // grid: Sunday-start full weeks, week total in the last column
-    let h = ['日','月','火','水','木','金','土'].map((w,i) => `<div class="cal-h${i===0?' sun':i===6?' sat':''}">${w}</div>`).join('') + '<div class="cal-h">週計</div>';
+    let h = Array.from({length: 7}, (_, i) => { const wd = ((settings.weekStart || 0) + i) % 7; return `<div class="cal-h${wd===0?' sun':wd===6?' sat':''}">${'日月火水木金土'[wd]}</div>`; }).join('') + '<div class="cal-h">週計</div>';
     const first = new Date(calY, calM, 1);
-    let cur = new Date(calY, calM, 1 - first.getDay());
+    let cur = new Date(calY, calM, 1 - wkOff(first));
     const end = new Date(calY, calM, last);
     while (cur <= end){
       let wSum = 0, wAny = false;
@@ -1608,7 +1628,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     $('goalPaceWrap').hidden = !goal.deadline;
     if (goal.deadline){
       const [y,m,d] = goal.deadline.split('-').map(Number);
-      const now = new Date();
+      const now = nowL();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const days = Math.round((new Date(y, m-1, d) - todayStart) / 86400000) + 1; // today counts
       const cnt = $('goalCount');
@@ -1619,20 +1639,20 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       // earnings inside the period don't move it. Every record in the period counts, even ones from
       // before the goal was (re)set, because "left now + earned since the period began" = what was left then.
       const deadlineEnd = new Date(y, m-1, d);
-      const netFrom = ms => plays.reduce((acc, x) => { const t = Date.parse(x.at); return t >= ms ? acc + x.result - costOf(x) : acc; }, 0);
+      const netFrom = startDate => { const k = dayKey(startDate); return plays.reduce((acc, x) => x.day >= k ? acc + x.result - costOf(x) : acc, 0); };
       const dayStart = dt => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
       const daysIncl = (from, to) => Math.round((dayStart(to) - dayStart(from)) / 86400000) + 1;
       const period = (start, end) => {
         const anchor = start.getTime();
         const aDate = new Date(anchor);
-        const got = netFrom(anchor);                       // earned in this period so far
+        const got = netFrom(aDate);                        // earned in this period so far
         const leftAtAnchor = left + got;                    // what was left when the period began
         const daysToGoal = daysIncl(aDate, deadlineEnd);    // days from the period start to the deadline
         const span = Math.min(daysIncl(aDate, end), daysToGoal);
         if (!(leftAtAnchor > 0) || daysToGoal < 1 || span < 1) return {target: 0, got};
         return {target: Math.ceil(leftAtAnchor / daysToGoal * span), got};
       };
-      const tDay = todayStart, wkS = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+      const tDay = todayStart, wkS = new Date(now.getFullYear(), now.getMonth(), now.getDate() - wkOff(now));
       const pD = period(tDay, tDay);
       const pW = period(wkS, new Date(wkS.getFullYear(), wkS.getMonth(), wkS.getDate() + 6));
       const pM = period(new Date(now.getFullYear(), now.getMonth(), 1), new Date(now.getFullYear(), now.getMonth() + 1, 0));
@@ -1795,7 +1815,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     if (dur > 0) x.dur = dur; else delete x.dur;
     const ch = $('edChara').value.trim();
     if (ch) x.chara = ch; else delete x.chara;
-    if ($('edAt').value !== localDT(x.at)){ x.at = at.toISOString(); x.day = dayKey(at); }
+    if ($('edAt').value !== localDT(x.at)){ x.at = at.toISOString(); x.day = dayOf(at); }
     save(); closeEditor();
   });
   $('edDel').addEventListener('click', () => {
@@ -1910,7 +1930,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     for (const x of list){
       if (!x || typeof x.id !== 'string' || !(x.play > 0) || !(x.result > 0) || typeof x.at !== 'string') continue;
       if (have.has(x.id)) continue;
-      plays.push({id:x.id, play:+x.play, result:+x.result, cost: +x.cost || 0, ...(x.dur > 0 ? {dur: +x.dur} : {}), ...(x.est ? {est: true} : {}), ...(Array.isArray(x.items) ? {items: x.items.filter(k => typeof k === 'string').slice(0, 10)} : {}), ...(typeof x.chara === 'string' && x.chara ? {chara: x.chara.slice(0,30)} : {}), at:x.at, day: x.day || dayKey(new Date(x.at))});
+      plays.push({id:x.id, play:+x.play, result:+x.result, cost: +x.cost || 0, ...(x.dur > 0 ? {dur: +x.dur} : {}), ...(x.est ? {est: true} : {}), ...(Array.isArray(x.items) ? {items: x.items.filter(k => typeof k === 'string').slice(0, 10)} : {}), ...(typeof x.chara === 'string' && x.chara ? {chara: x.chara.slice(0,30)} : {}), at:x.at, day: dayOf(new Date(x.at))});
       have.add(x.id); added++;
     }
     let goalMsg = '';
@@ -1949,8 +1969,8 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   });
   $('importBtn').addEventListener('click', () => importText(io.value));
 
-  let lastDay = dayKey(new Date());
-  document.addEventListener('visibilitychange', () => { const d = dayKey(new Date()); if (d !== lastDay){ lastDay = d; render(); } });
+  let lastDay = dayKey(nowL());
+  document.addEventListener('visibilitychange', () => { const d = dayKey(nowL()); if (d !== lastDay){ lastDay = d; render(); } });
 
   /* ---- sync with Firebase (Authentication: email/password, Firestore) ---- */
   (() => {
@@ -2227,6 +2247,9 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   }
   function applyAllSettings(){
     applySettingsVars(); applyPrices(); readItemDefs(); edPick.build(); bulkPick.build();
+    let moved = 0; for (const x of plays){ const nd = dayOf(new Date(x.at)); if (x.day !== nd){ x.day = nd; moved++; } }
+    if (moved) save();
+    lastDay = dayKey(nowL());
     syncItems(items.size > 0); renderSettings(); tick(); render();
   }
   window.__applyRemoteSettings = o => {
@@ -2238,7 +2261,12 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   const segSet = (id, v) => document.querySelectorAll('#' + id + ' button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === v ? 'true' : 'false'));
   let editingChara = null;
   function renderSettings(){
+    const ds = $('dayStart');
+    if (!ds.options.length) ds.innerHTML = Array.from({length: 24}, (_, h) => `<option value="${h}">${h}時${h === 0 ? '（夜中の12時・ふつう）' : ''}</option>`).join('');
+    ds.value = String(settings.dayStartHour || 0);
+    $('dayStartNote').textContent = settings.dayStartHour ? `0時〜${settings.dayStartHour - 1}時59分のプレイは、前の日の分になります` : '';
     segSet('startTabSeg', settings.startTab);
+    segSet('weekStartSeg', String(settings.weekStart || 0));
     segSet('backupOnSeg', settings.backupOn ? 'on' : 'off');
     $('backupStepRow').hidden = !settings.backupOn;
     if (document.activeElement !== $('breakMin')) $('breakMin').value = settings.breakMin;
@@ -2289,6 +2317,8 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       } else renderCharaList();
     }
   });
+  $('dayStart').addEventListener('change', () => { const v = +$('dayStart').value; if (v >= 0 && v <= 23){ settings.dayStartHour = v; saveSettings(); } });
+  $('weekStartSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (!b) return; settings.weekStart = +b.dataset.v; saveSettings(); });
   $('startTabSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (!b) return; settings.startTab = b.dataset.v; saveSettings(); });
   $('backupOnSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (!b) return; settings.backupOn = b.dataset.v === 'on'; saveSettings(); });
   $('breakMin').addEventListener('change', () => { const v = toInt($('breakMin').value); if (v >= 1 && v <= 600){ settings.breakMin = v; saveSettings(); } else $('breakMin').value = settings.breakMin; });
