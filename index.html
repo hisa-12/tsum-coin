@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.6', date: '2026/11/05 23:48' };
+window.APP_VERSION = { no: '2.7', date: '2026/11/06 08:30' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -453,6 +453,9 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
 .toast .btn{background:transparent;color:var(--coin);border-color:color-mix(in srgb,var(--coin) 60%,transparent);white-space:nowrap}
 @media (min-width:1100px){.toast{bottom:calc(env(safe-area-inset-bottom, 0px) + 24px)}}
 .hist-tools{gap:8px}
+.istat td.nm{white-space:normal;min-width:7.5em;font-weight:700}
+.istat td.best{color:var(--teal);font-weight:800}
+.istat tr.top td{background:color-mix(in srgb,var(--teal) 9%,transparent)}
 .update-box{display:flex;flex-direction:column;align-items:center;gap:8px}
 .update-box .msg{margin:0;text-align:center}
 .app-version{margin:0;text-align:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -665,6 +668,12 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     </div>
   </section>
 
+  <section id="secItems">
+    <h2>アイテムの組み合わせごとの成績</h2>
+    <div class="list" id="itemStats"></div>
+    <p class="msg" id="itemStatsNote" style="margin:8px 2px 0"></p>
+  </section>
+
   <section id="secCal">
     <div class="sec-head">
       <h2>カレンダー</h2>
@@ -861,6 +870,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       <p class="msg">記録をファイルにして保存します。iPhoneでは保存の画面で「"ファイル"に保存」を選ぶと、好きなフォルダに保存できます。iPhoneの「ファイル」アプリ（iCloud Drive など）に保存しておけば、別の端末や機種変更後も読み込めます。読み込んでも同じ記録は二重になりません。</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn primary" id="saveFileBtn" type="button">ファイルに保存</button>
+        <button class="btn" id="saveCsvBtn" type="button">表計算用（CSV）で保存</button>
         <label class="btn" for="loadFile" style="cursor:pointer">ファイルから読み込み</label>
         <input id="loadFile" type="file" accept=".json,application/json,text/plain" hidden>
       </div>
@@ -1171,6 +1181,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     if (ch) rec.chara = ch;
     lsSet(LS_CHARA, ch);
     lsSet(LS_STOP, '0');
+    remember('記録しました', [rec.id]);
     plays.push(rec);
     tick();
     save();
@@ -1246,6 +1257,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     $('sDurN').textContent = `計測 ${timed.length} 回`;
     $('sTodayDur').textContent = tDur ? hm(tDur) : '—';
     $('sTotalDur').textContent = durSum ? hm(durSum) : '—';
+    renderItemStats(sorted);
     chartPlays = sorted; if (goalReady) renderChart();
 
 
@@ -1887,27 +1899,48 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   $('undoBtn').addEventListener('click', undo);
   window.__remember = remember;
 
+  /* ---- results by item combination ---- */
+  const ITEM_ORDER = ['score','coin','exp','time','bomb','54'];
+  const ITEM_LABEL = {score:'スコア', coin:'コイン', exp:'Exp', time:'タイム', bomb:'ボム', '54':'5→4'};
+  function comboOf(x){
+    if (Array.isArray(x.items) && x.items.length) return ITEM_ORDER.filter(k => x.items.includes(k)).map(k => ITEM_LABEL[k]).join('＋');
+    return costOf(x) > 0 ? '（アイテム不明）' : 'アイテムなし';
+  }
+  function renderItemStats(list){
+    const g = new Map();
+    for (const x of list){
+      const k = comboOf(x), d = g.get(k) || {n:0, earn:0, cost:0, play:0, dur:0, durNet:0};
+      d.n++; d.earn += x.result; d.cost += costOf(x); d.play += x.play;
+      if (hasDur(x)){ d.dur += x.dur; d.durNet += x.result - costOf(x); }
+      g.set(k, d);
+    }
+    if (!g.size){ $('itemStats').innerHTML = '<div class="empty-note">記録すると、使ったアイテムの組み合わせごとの成績がここに出ます</div>'; $('itemStatsNote').textContent = ''; return; }
+    const rows = [...g.entries()].sort((a, b) => b[1].n - a[1].n);
+    // best average net among combos with at least 3 plays
+    let bestK = null, bestV = -Infinity;
+    for (const [k, d] of rows){ if (d.n >= 3 && k !== '（アイテム不明）'){ const v = (d.earn - d.cost) / d.n; if (v > bestV){ bestV = v; bestK = k; } } }
+    let h = '<table class="istat"><thead><tr><th>組み合わせ</th><th>回数</th><th>平均獲得</th><th>平均純利益</th><th>平均倍率</th><th>1時間あたり</th></tr></thead><tbody>';
+    for (const [k, d] of rows){
+      const avgNet = (d.earn - d.cost) / d.n;
+      h += `<tr${k === bestK ? ' class="top"' : ''}><td class="nm">${esc(k)}</td><td>${d.n}</td><td>${fmt(d.earn / d.n)}</td><td class="n${avgNet < 0 ? ' neg' : ''}${k === bestK ? ' best' : ''}">${sfmt(avgNet)}</td><td class="x">×${(d.earn / d.play).toFixed(2)}</td><td>${d.dur ? sfmt(d.durNet / d.dur * 3600) : '—'}</td></tr>`;
+    }
+    $('itemStats').innerHTML = h + '</tbody></table>';
+    $('itemStatsNote').textContent = (bestK ? `平均純利益がいちばん多いのは「${bestK}」です（3回以上プレイした組み合わせの中で）。` : '')
+      + (g.has('（アイテム不明）') ? '「アイテム不明」は、どのアイテムを使ったか記録される前のプレイです。' : '');
+  }
+
   /* ---- backup ---- */
   const io = $('io'), ioMsg = $('ioMsg');
   const say = (t, cls) => { ioMsg.textContent = t; ioMsg.className = 'msg' + (cls ? ' ' + cls : ''); };
   const exportText = () => JSON.stringify({app:'tsum-coin', v:3, exportedAt:new Date().toISOString(), plays, goal, settings: (window.__getSettings ? window.__getSettings() : undefined)});
 
-  async function saveFile(){
-    const now = new Date();
-    const name = `tsum-coin-${dayKey(now)}-${pad(now.getHours())}${pad(now.getMinutes())}.json`;
-    const blob = new Blob([exportText()], {type:'application/json'});
+  // save a file: share sheet on iPhone / iPad (「"ファイル"に保存」 lets you pick any folder), download elsewhere
+  async function saveBlob(name, blob, type, onDone){
     let file = null;
-    try { file = new File([blob], name, {type:'application/json'}); } catch(_) {}
-    // iPhone / iPad: share sheet, where 「"ファイル"に保存」 lets you pick any folder
+    try { file = new File([blob], name, {type}); } catch(_) {}
     if (file && navigator.canShare && navigator.canShare({files:[file]})){
-      try {
-        await navigator.share({files:[file]});
-        ackBackup();
-        say(`${plays.length} 件を保存しました（${name}）。`, 'ok');
-      } catch(e){
-        if (e && e.name === 'AbortError') say('保存をやめました。', '');
-        else download();
-      }
+      try { await navigator.share({files:[file]}); onDone(); }
+      catch(e){ if (e && e.name === 'AbortError') say('保存をやめました。', ''); else download(); }
       return;
     }
     download();
@@ -1915,10 +1948,30 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       const url = URL.createObjectURL(blob), a = document.createElement('a');
       a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
-      ackBackup();
-      say(`${plays.length} 件をファイルに保存しました（${name}）。`, 'ok');
+      onDone();
     }
   }
+  const stamp = () => { const n = new Date(); return `${dayKey(n)}-${pad(n.getHours())}${pad(n.getMinutes())}`; };
+  async function saveFile(){
+    const name = `tsum-coin-${stamp()}.json`;
+    await saveBlob(name, new Blob([exportText()], {type:'application/json'}), 'application/json', () => { ackBackup(); say(`${plays.length} 件を保存しました（${name}）。`, 'ok'); });
+  }
+  // spreadsheet (Excel / Google Sheets / Numbers): one row per play
+  function csvText(){
+    const q = v => { const t = String(v == null ? '' : v); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const head = ['日付','時刻','キャラ','プレイ中のコイン','リザルトのコイン','倍率','アイテム代','純利益','プレイ時間(秒)','推定','アイテム'];
+    const rows = plays.slice().sort((a, b) => a.at < b.at ? -1 : 1).map(x => {
+      const d = new Date(x.at);
+      return [x.day, `${pad(d.getHours())}:${pad(d.getMinutes())}`, x.chara || '', x.play, x.result, (x.result / x.play).toFixed(2), costOf(x), x.result - costOf(x), hasDur(x) ? x.dur : '', x.est ? '推定' : '', comboOf(x)].map(q).join(',');
+    });
+    return '﻿' + [head.join(','), ...rows].join('\r\n');   // BOM so Excel reads the Japanese correctly
+  }
+  async function saveCsv(){
+    if (!plays.length){ say('まだ記録がありません。', 'bad'); return; }
+    const name = `tsum-coin-${stamp()}.csv`;
+    await saveBlob(name, new Blob([csvText()], {type:'text/csv'}), 'text/csv', () => say(`${plays.length} 件を表計算用のファイルにしました（${name}）。ExcelやGoogleスプレッドシート、Numbersで開けます。読み込み（復元）には使えないので、バックアップには「ファイルに保存」を使ってください。`, 'ok'));
+  }
+  $('saveCsvBtn').addEventListener('click', saveCsv);
   $('saveFileBtn').addEventListener('click', saveFile);
 
   function importText(text){
