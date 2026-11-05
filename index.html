@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.4', date: '2026/11/05 23:37' };
+window.APP_VERSION = { no: '2.5', date: '2026/11/05 23:43' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -398,8 +398,9 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
 .seg-wide{display:flex;width:100%}
 .seg-wide button{flex:1;padding:8px 6px;font-size:13px}
-.pref{display:flex;flex-direction:column;gap:16px}
-.pref-row{display:flex;flex-direction:column;gap:8px}
+.pref{display:flex;flex-direction:column;gap:22px}
+.pref-row{display:flex;flex-direction:column;gap:10px}
+.pref-row + .pref-row{padding-top:22px;border-top:1px solid var(--line)}
 .pref-k{font-size:13px;font-weight:700;color:var(--muted)}
 .pref-num{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--muted);font-weight:700}
 .pref-sel{font:inherit;font-weight:700;font-size:16px;padding:7px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)}
@@ -2262,7 +2263,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   let editingChara = null;
   function renderSettings(){
     const ds = $('dayStart');
-    if (!ds.options.length) ds.innerHTML = Array.from({length: 24}, (_, h) => `<option value="${h}">${h}時${h === 0 ? '（夜中の12時・ふつう）' : ''}</option>`).join('');
+    if (!ds.options.length) ds.innerHTML = Array.from({length: 24}, (_, h) => `<option value="${h}">${h}時</option>`).join('');
     ds.value = String(settings.dayStartHour || 0);
     $('dayStartNote').textContent = settings.dayStartHour ? `0時〜${settings.dayStartHour - 1}時59分のプレイは、前の日の分になります` : '';
     segSet('startTabSeg', settings.startTab);
