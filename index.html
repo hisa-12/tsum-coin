@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '1.11', date: '2026/11/05' };
+window.APP_VERSION = { no: '1.12', date: '2026/11/05' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -513,9 +513,9 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       <div id="goalPaceWrap" hidden>
         <div class="goal-count num" id="goalCount"></div>
         <div class="pace" style="margin-top:8px">
-          <div><div class="k">1日あたり</div><div class="v" id="paceDay">—</div><div class="prog" id="progDay"></div></div>
-          <div><div class="k">1週間あたり</div><div class="v" id="paceWeek">—</div><div class="prog" id="progWeek"></div></div>
-          <div><div class="k">1か月あたり</div><div class="v" id="paceMonth">—</div><div class="prog" id="progMonth"></div></div>
+          <div><div class="k">今日の目標</div><div class="v" id="paceDay">—</div><div class="prog" id="progDay"></div></div>
+          <div><div class="k">今週の目標</div><div class="v" id="paceWeek">—</div><div class="prog" id="progWeek"></div></div>
+          <div><div class="k">今月の目標</div><div class="v" id="paceMonth">—</div><div class="prog" id="progMonth"></div></div>
         </div>
       </div>
     </div>
@@ -1552,26 +1552,38 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       const dl = `${m}/${d}（${'日月火水木金土'[new Date(y,m-1,d).getDay()]}）`;
       if (days < 1){ cnt.innerHTML = `${dl}の期限を過ぎています`; cnt.classList.add('late'); }
       else { cnt.innerHTML = `${dl}まで あと <b>${days}</b> 日（今日を含む）`; cnt.classList.remove('late'); }
-      // net earned today / this week (Sun–Sat, like the calendar) / this month
-      const dk = dayKey(now);
-      const wStart = dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()));
-      const mStart = dayKey(new Date(now.getFullYear(), now.getMonth(), 1));
-      let nToday = 0, nWeek = 0, nMonth = 0;
-      for (const x of plays){ const v = x.result - costOf(x); if (x.day === dk) nToday += v; if (x.day >= wStart && x.day <= dk) nWeek += v; if (x.day >= mStart && x.day <= dk) nMonth += v; }
-      const prog = (id, got, target, label) => {
-        const el = $(id);
-        if (!(target > 0)){ el.innerHTML = ''; el.className = 'prog'; return; }
-        const pct = Math.max(0, got / target * 100), done = pct >= 100;
-        el.className = 'prog' + (done ? ' done' : '');
-        el.innerHTML = `<div class="pl"><span>${label} ${sfmt(got)}</span><span>${done ? '達成' : Math.floor(pct) + '%'}</span></div><div class="mb"><i style="width:${Math.min(100, pct).toFixed(1)}%"></i></div>`;
+      // each period's target is fixed when the period starts (today / this week Sun–Sat / this month),
+      // or from the moment the goal was set if that was later. Earnings inside the period don't move it.
+      const deadlineEnd = new Date(y, m-1, d);
+      const setAtMs = Date.parse(goal.setAt) || 0;
+      const netFrom = ms => plays.reduce((acc, x) => { const t = Date.parse(x.at); return t >= ms && t > setAtMs ? acc + x.result - costOf(x) : acc; }, 0);
+      const dayStart = dt => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+      const daysIncl = (from, to) => Math.round((dayStart(to) - dayStart(from)) / 86400000) + 1;
+      const period = (start, end) => {
+        const anchor = Math.max(start.getTime(), setAtMs);
+        const aDate = new Date(anchor);
+        const got = netFrom(anchor);                       // earned in this period so far
+        const leftAtAnchor = left + got;                    // what was left when the period began
+        const daysToGoal = daysIncl(aDate, deadlineEnd);    // days from the period start to the deadline
+        const span = Math.min(daysIncl(aDate, end), daysToGoal);
+        if (!(leftAtAnchor > 0) || daysToGoal < 1 || span < 1) return {target: 0, got};
+        return {target: Math.ceil(leftAtAnchor / daysToGoal * span), got};
       };
-      // targets are fixed for the day: based on what was left this morning (today's earnings don't shrink today's target)
-      const leftAtStart = left + nToday;
-      if (leftAtStart > 0 && days >= 1){
-        const perDay = leftAtStart / days;
-        const tD = Math.ceil(perDay), tW = Math.ceil(perDay * Math.min(7, days)), tM = Math.ceil(perDay * Math.min(30, days));
-        $('paceDay').textContent = fmt(tD); $('paceWeek').textContent = fmt(tW); $('paceMonth').textContent = fmt(tM);
-        prog('progDay', nToday, tD, '今日'); prog('progWeek', nWeek, tW, '今週'); prog('progMonth', nMonth, tM, '今月');
+      const tDay = todayStart, wkS = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+      const pD = period(tDay, tDay);
+      const pW = period(wkS, new Date(wkS.getFullYear(), wkS.getMonth(), wkS.getDate() + 6));
+      const pM = period(new Date(now.getFullYear(), now.getMonth(), 1), new Date(now.getFullYear(), now.getMonth() + 1, 0));
+      const prog = (id, p, label) => {
+        const el = $(id);
+        if (!(p.target > 0)){ el.innerHTML = ''; el.className = 'prog'; return; }
+        const pct = Math.max(0, p.got / p.target * 100), done = pct >= 100;
+        el.className = 'prog' + (done ? ' done' : '');
+        el.innerHTML = `<div class="pl"><span>${label} ${sfmt(p.got)}</span><span>${done ? '達成' : Math.floor(pct) + '%'}</span></div><div class="mb"><i style="width:${Math.min(100, pct).toFixed(1)}%"></i></div>`;
+      };
+      if (days >= 1 && (left > 0 || pD.target > 0)){
+        const show = (id, p) => { $(id).textContent = p.target > 0 ? fmt(p.target) : '達成'; };
+        show('paceDay', pD); show('paceWeek', pW); show('paceMonth', pM);
+        prog('progDay', pD, '今日'); prog('progWeek', pW, '今週'); prog('progMonth', pM, '今月');
       } else {
         const t = left <= 0 ? '達成' : '—';
         $('paceDay').textContent = t; $('paceWeek').textContent = t; $('paceMonth').textContent = t;
