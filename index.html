@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '1.13', date: '2026/11/05' };
+window.APP_VERSION = { no: '1.14', date: '2026/11/05' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -281,7 +281,13 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 .pace > div{padding-inline:8px}
 .pace .prog{margin-top:6px;display:flex;flex-direction:column;gap:3px;font-size:11px;font-weight:700;color:var(--coin-deep);font-variant-numeric:tabular-nums;min-width:0}
 .pace .prog:empty{display:none}
-.pace .prog .pl{display:flex;justify-content:space-between;gap:4px;flex-wrap:wrap}
+.pace > div{display:flex;flex-direction:column}
+.pace .prog{margin-top:auto !important;padding-top:6px}
+.pace .prog .pl{display:flex;flex-wrap:wrap;column-gap:4px}
+.pace .prog .pl span{white-space:nowrap}
+.pace .prog .br{display:flex;align-items:center;gap:6px}
+.pace .prog .br .mb{flex:1;min-width:0}
+.pace .prog .br b{white-space:nowrap;font-size:11px}
 .pace .prog .mb{height:6px;border-radius:999px;background:color-mix(in srgb,var(--coin-deep) 18%,transparent);overflow:hidden}
 .pace .prog .mb i{display:block;height:100%;border-radius:999px;background:var(--coin)}
 .pace .prog.done{color:var(--teal)}
@@ -1578,7 +1584,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
         if (!(p.target > 0)){ el.innerHTML = ''; el.className = 'prog'; return; }
         const pct = Math.max(0, p.got / p.target * 100), done = pct >= 100;
         el.className = 'prog' + (done ? ' done' : '');
-        el.innerHTML = `<div class="pl"><span>${label} ${sfmt(p.got)}</span><span>${done ? '達成' : Math.floor(pct) + '%'}</span></div><div class="mb"><i style="width:${Math.min(100, pct).toFixed(1)}%"></i></div>`;
+        el.innerHTML = `<div class="pl"><span>${label}</span><span>${sfmt(p.got)}</span></div><div class="br"><div class="mb"><i style="width:${Math.min(100, pct).toFixed(1)}%"></i></div><b>${done ? '達成' : Math.floor(pct) + '%'}</b></div>`;
       };
       if (days >= 1 && (left > 0 || pD.target > 0)){
         const show = (id, p) => { $(id).textContent = p.target > 0 ? fmt(p.target) : '達成'; };
