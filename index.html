@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.19', date: '2026/11/06 14:52' };
+window.APP_VERSION = { no: '2.20', date: '2026/11/06 15:03' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -349,11 +349,13 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 .chart-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 12px 10px;margin-top:10px;display:flex;flex-direction:column;gap:6px;position:relative}
 .chart-tip{position:absolute;z-index:3;display:flex;flex-direction:column;gap:1px;padding:7px 12px 8px;border-radius:12px;background:var(--bg);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none;white-space:nowrap}
 .chart-tip[hidden],.chart-tip-line[hidden]{display:none}
-.chart-tip .tl{font-size:11px;font-weight:700;color:var(--muted)}
-.chart-tip .tv{font-variant-numeric:tabular-nums;line-height:1.1}
-.chart-tip .tv b{font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
-.chart-tip .tv small{font-size:12px;font-weight:700;color:var(--muted);margin:0 3px 0 2px}
-.chart-tip .td{font-size:11.5px;font-weight:700;color:var(--muted)}
+.chart-sum{display:flex;flex-direction:column;gap:1px;padding:7px 0 8px;min-height:62px;box-sizing:border-box}
+.chart-sum.off{visibility:hidden}
+.chart-sum .tl,.chart-tip .tl{font-size:11px;font-weight:700;color:var(--muted)}
+.chart-sum .tv,.chart-tip .tv{font-variant-numeric:tabular-nums;line-height:1.1}
+.chart-sum .tv b,.chart-tip .tv b{font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+.chart-sum .tv small,.chart-tip .tv small{font-size:12px;font-weight:700;color:var(--muted);margin:0 3px 0 2px}
+.chart-sum .td,.chart-tip .td{font-size:11.5px;font-weight:700;color:var(--muted)}
 .chart-tip-line{position:absolute;z-index:2;width:2px;background:var(--muted);opacity:.6;pointer-events:none}
 .chart-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .chart-head .k{font-size:12px;font-weight:700;color:var(--muted)}
@@ -380,8 +382,6 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 #chart .hit{fill:transparent;cursor:pointer}
 #chart text{fill:var(--muted);font-size:10px;font-family:var(--font-body);font-variant-numeric:tabular-nums}
 #chart text.avgl{fill:var(--coin-deep);font-weight:700}
-.chart-foot{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:2px 14px}
-.chart-foot b{color:var(--ink)}
 .sync-form{display:flex;flex-direction:column;gap:10px}
 .sync-form .field input{font:inherit;font-size:16px;padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box}
 .sync-form .field input:focus{outline:none;border-color:var(--coin)}
@@ -696,9 +696,9 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
         <button type="button" id="chartNext" aria-label="後の期間へ">›</button>
         <button type="button" class="btn" id="chartToday" hidden>今日へ</button>
       </div>
+      <div class="chart-sum" id="chartSum"></div>
       <div class="chart-tip" id="chartTip" hidden></div><div class="chart-tip-line" id="chartTipLine" hidden></div>
       <div class="chart-wrap"><svg id="chart" viewBox="0 0 360 180" role="img" aria-label="日ごとの純利益の棒グラフ"></svg></div>
-      <div class="chart-foot num" id="chartFoot"></div>
     </div>
   </section>
 
@@ -1420,6 +1420,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   let chartMetric = METRICS[lsGet(LS_METRIC)] ? lsGet(LS_METRIC) : 'net';
   let chartSel = '';
   let chartTag = () => {};
+  let chartHover = '';
   let chartOff = 0;   // buckets between the current one and the right edge
   const UNIT = {
     day:   {name: '日', count: () => chartRange},
@@ -1533,9 +1534,11 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       : M === 'dur' ? (() => { const h = Math.floor(v / 3600), m = Math.round(v % 3600 / 60); return (h ? `<b>${h}</b><small>時間</small>` : '') + (m || !h ? `<b>${m}</b><small>分</small>` : ''); })()
       : `<b>${sfmt(Math.round(v))}</b><small>コイン</small>`;
     chartTag = k => {
-      const tip = $('chartTip'), line = $('chartTipLine');
-      const si = days.findIndex(d => d.k === k && d.v != null);
-      if (si < 0){ tip.hidden = line.hidden = true; return; }
+      const tip = $('chartTip'), line = $('chartTipLine'), sum = $('chartSum');
+      let si = days.findIndex(d => d.k === k && d.v != null);
+      if (si < 0) si = days.findIndex(d => d.k === chartSel && d.v != null);
+      if (si < 0){ tip.hidden = line.hidden = true; sum.classList.remove('off'); return; }
+      sum.classList.add('off');
       const d = days[si];
       tip.innerHTML = `<span class="tl">${METRICS[M]}</span><span class="tv">${tipVal(d.v)}</span><span class="td">${bucketName(chartUnit, d)}・${d.n}プレイ</span>`;
       tip.hidden = line.hidden = false;
@@ -1544,11 +1547,11 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       const gridTop = svg.top - card.top + T * sc, barTop = svg.top - card.top + Math.min(y(d.v), y(base)) * sc;
       const tw = tip.offsetWidth, th = tip.offsetHeight;
       const left = Math.min(card.width - tw - 6, Math.max(6, bx - tw / 2));
-      const top = Math.max(4, gridTop - th - 2);
+      const top = sum.offsetTop;
       tip.style.left = left + 'px'; tip.style.top = top + 'px';
       line.style.left = (bx - 1) + 'px'; line.style.top = (top + th) + 'px'; line.style.height = Math.max(0, barTop - top - th - 2) + 'px';
     };
-    chartTag(chartSel);
+    chartTag(chartHover || chartSel);
     $('chart').setAttribute('aria-label', `${U.name}ごとの${METRICS[M]}の棒グラフ`);
     const f = days[0].start, todayD = bucketStart('day', 0);
     let l = bucketEnd(chartUnit, days[days.length - 1].start); if (l > todayD) l = todayD;
@@ -1559,17 +1562,15 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     $('chartNext').disabled = chartOff === 0;
     $('chartPrev').disabled = chartOff >= chartMaxOff();
     $('chartToday').hidden = chartOff === 0;
-    const sel = days.find(d => d.k === chartSel);
     const nm = chartUnit === 'day' ? `${count}日間` : `${count}${chartUnit === 'week' ? '週' : chartUnit === 'month' ? 'か月' : '年'}間`;
     const unitN = chartUnit === 'month' ? 'か月' : U.name;
     // whole-period value: a sum for totals, the overall average for ratios
     const all = {n:0, earn:0, cost:0, play:0, dur:0}; played.forEach(d => { for (const k2 in all) all[k2] += d.a[k2]; });
-    $('chartFoot').innerHTML = sel
-      ? `<span><b>${bucketName(chartUnit, sel)}</b></span><span>${sel.n ? `${METRICS[M]} <b>${fmtFull(sel.v)}</b>・${sel.n}プレイ` : '記録なし'}</span>`
-      : played.length
-        ? (isRatio ? `<span>${nm}全体の${METRICS[M]} <b>${fmtFull(valueOf(all))}</b></span>` : `<span>${nm}の合計 <b>${fmtFull(valueOf(all))}</b></span>`)
-          + `<span>点線＝プレイした${unitN}の平均 <b>${fmtFull(avg)}</b>（${played.length}${unitN}）</span>`
-        : `<span>この${nm}の記録はありません</span>`;
+    // summary slot (the callout takes its place while a bar is picked)
+    $('chartSum').innerHTML = played.length
+      ? `<span class="tl">${nm}${isRatio ? '全体の' + METRICS[M] : 'の合計'}</span><span class="tv">${tipVal(valueOf(all))}</span>`
+        + `<span class="td">点線＝プレイした${unitN}の平均 ${fmtFull(avg)}（${played.length}${unitN}）</span>`
+      : `<span class="tl">${nm}</span><span class="tv"><b>—</b></span><span class="td">記録はありません</span>`;
   }
   function chartMaxOff(){
     // go back until the oldest record's bucket is at the left edge
@@ -1613,11 +1614,12 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   let chartRz = 0; window.addEventListener('resize', () => { clearTimeout(chartRz); chartRz = setTimeout(() => { if ($('chart').getBoundingClientRect().width) renderChart(); }, 150); });
   $('chartMetric').addEventListener('change', e => { chartMetric = e.target.value; lsSet(LS_METRIC, chartMetric); chartSel = ''; renderChart(); });
   // mouse/trackpad: show the value while hovering, back to the tapped bar when leaving
-  $('chart').addEventListener('pointerover', e => {
+  $('chart').addEventListener('pointermove', e => {
     if (e.pointerType !== 'mouse') return;
-    const h = e.target.closest('.hit'); if (h) chartTag(h.dataset.k);
+    const h = e.target.closest('.hit'), k = h ? h.dataset.k : '';
+    if (k !== chartHover){ chartHover = k; chartTag(k); }
   });
-  $('chart').addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') chartTag(chartSel); });
+  $('chart').addEventListener('pointerleave', e => { if (e.pointerType === 'mouse'){ chartHover = ''; chartTag(chartSel); } });
   $('chart').addEventListener('click', e => { const r = e.target.closest('.hit'); if (!r) return; chartSel = chartSel === r.dataset.k ? '' : r.dataset.k; renderChart(); });
 
   function renderDays(){
