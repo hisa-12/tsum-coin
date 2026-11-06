@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.32', date: '2026/11/06 16:34' };
+window.APP_VERSION = { no: '2.33', date: '2026/11/06 19:41' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -2250,6 +2250,29 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
       if (!m || !p) return msg('メールアドレスとパスワードを入れてください。', true);
       msg('ログイン中…'); auth.signInWithEmailAndPassword(m, p).catch(err => msg(errText(err), true));
     });
+    // AutoFill (iPhone / iCloud passwords etc.) drops the whole password in at once: log in right away.
+    // Typing adds one character at a time, so that never triggers this.
+    {
+      let lastPass = '', tried = '', t = 0;
+      const autoLogin = e => {
+        const pe = $('syncPass'), ee = $('syncEmail');
+        if (!e.target || (e.target !== pe && e.target !== ee)) return;
+        const p = pe.value, m = ee.value.trim(), jump = p.length - lastPass.length;
+        const filled = (e.target === pe && jump > 1) || e.inputType === 'insertReplacementText' || (e.type === 'change' && e.target === pe && !e.inputType && jump > 1)
+          || (pe.matches && (() => { try { return pe.matches(':-webkit-autofill') || pe.matches(':autofill'); } catch(_) { return false; } })());
+        lastPass = p;
+        if (!filled || !m || p.length < 6 || tried === m + '\n' + p) return;
+        clearTimeout(t);
+        t = setTimeout(() => {
+          if (pe.value !== p || ee.value.trim() !== m || auth.currentUser) return;
+          tried = m + '\n' + p;
+          const f = $('loginForm');
+          if (f.requestSubmit) f.requestSubmit(); else $('loginBtn').click();
+        }, 350);
+      };
+      $('loginForm').addEventListener('input', autoLogin);
+      $('loginForm').addEventListener('change', autoLogin);
+    }
     $('signupBtn').addEventListener('click', () => {
       const [m, p] = creds();
       if (!m || !p) return msg('登録したいメールアドレスとパスワードを入れてください。', true);
