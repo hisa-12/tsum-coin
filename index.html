@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.28', date: '2026/11/06 16:06' };
+window.APP_VERSION = { no: '2.29', date: '2026/11/06 16:12' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -450,14 +450,17 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
 .gate-or::before,.gate-or::after{content:"";flex:1;height:1px;background:var(--line)}
 .gate-skip{padding:11px;font-size:15px}
 .gate-note{margin:0;font-size:12px}
-#gateSlot #syncMsg:empty{display:none}
 /* login screen: same form as the settings tab, laid out like a login page (layout only — contents untouched for AutoFill) */
 #gateSlot .sync-form{display:flex;flex-direction:column;gap:12px;margin:0}
 #gateSlot .sync-form > p.msg:first-child{text-align:center;margin:0 0 4px}
-/* the two small buttons sit side by side when they fit, otherwise each takes its own full line (never breaks mid-word) */
-#gateSlot .sync-form > div:not(.field){display:flex !important;flex-wrap:wrap;gap:8px !important}
-#gateSlot #loginBtn{flex:1 1 100%;padding:12px;font-size:16px}
-#gateSlot #signupBtn,#gateSlot #resetPassBtn{flex:1 1 auto;font-size:13px;padding-left:10px;padding-right:10px;white-space:nowrap}
+/* login buttons: big login button, the two small ones side by side when they fit, otherwise one per line (never breaks mid-word) */
+.sync-form > div:not(.field){display:flex !important;flex-wrap:wrap;gap:8px !important}
+#loginBtn{flex:1 1 100%;padding:11px;font-size:15px}
+#gateSlot #loginBtn{padding:12px;font-size:16px}
+#signupBtn,#resetPassBtn{flex:1 1 auto;font-size:13px;padding-left:10px;padding-right:10px;white-space:nowrap}
+#syncMsg:empty{display:none}
+#syncOn > div{display:flex}
+#logoutBtn{flex:1 1 100%;padding:10px}
 #gateSlot #syncMsg{margin:0}
 .gate-check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--muted)}
 .gate-check input{width:18px;height:18px;accent-color:var(--teal)}
@@ -2304,15 +2307,18 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
       unsub.forEach(f => f()); unsub = []; months = meta = null; ready = false; synced = new Map();
       window.__syncing = false;
     }
+    let wasIn = false;
     auth.onAuthStateChanged(async user => {
       stop();
       if (!user){
+        if (wasIn){ $('syncEmail').value = ''; $('syncPass').value = ''; }   // logged out: start with empty fields
+        wasIn = false; msg('');
         show('loginForm'); setStatus('未ログイン・この端末に保存中');
         let noGate = false; try { noGate = localStorage.getItem(LS_NOGATE) === '1'; } catch(_) {}
         if (!gateSkipped && !noGate) setGate(true);
         return;
       }
-      setGate(false);
+      setGate(false); wasIn = true; msg('');
       try { localStorage.removeItem(LS_NOGATE); } catch(_) {}
       show('syncOn'); $('syncWho').textContent = `${user.email} でログイン中`;
       setStatus('同期の準備中…');
