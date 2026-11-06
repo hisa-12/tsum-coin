@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.25', date: '2026/11/06 15:46' };
+window.APP_VERSION = { no: '2.26', date: '2026/11/06 15:53' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -442,21 +442,15 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
 .gate-card{width:100%;max-width:400px;display:flex;flex-direction:column;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:24px 20px;box-shadow:0 18px 40px -24px var(--glass-shadow)}
 .gate-icon{width:72px;height:72px;border-radius:18px;align-self:center;box-shadow:0 6px 16px -8px var(--glass-shadow)}
 .gate-card h2{margin:0;text-align:center;font-family:var(--font-display);font-weight:800;font-size:22px;color:var(--ink);letter-spacing:0}
-.gate-lead{text-align:center;margin:0 0 4px}
 .gate-card .field{display:flex;flex-direction:column;gap:6px}
 .gate-card .field label{font-size:12px;font-weight:700;color:var(--muted)}
 .gate-card .field input{font:inherit;font-size:16px;padding:11px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box}
 .gate-card .field input:focus{outline:none;border-color:var(--coin)}
-.gate-login{display:flex;flex-direction:column;gap:12px;margin:0}
-.gate-card #gateMsg{margin:0;min-height:0}
-.gate-card #gateMsg:empty{display:none}
-.gate-main{padding:12px;font-size:16px}
-.gate-sub{display:flex;gap:8px;flex-wrap:wrap}
-.gate-sub .btn{flex:1;min-width:120px;font-size:13px;white-space:nowrap}
 .gate-or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;font-weight:700;margin:4px 0}
 .gate-or::before,.gate-or::after{content:"";flex:1;height:1px;background:var(--line)}
 .gate-skip{padding:11px;font-size:15px}
 .gate-note{margin:0;font-size:12px}
+#gateSlot #syncMsg:empty{display:none}
 .gate-check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--muted)}
 .gate-check input{width:18px;height:18px;accent-color:var(--teal)}
 /* login screen is a normal page (not an overlay) so iPhone AutoFill treats it like the settings form */
@@ -976,18 +970,8 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
   <div class="gate-card">
     <img src="icon-180.png" alt="" class="gate-icon" width="72" height="72">
     <h2 id="gateTitle">ツムツム コイン帳</h2>
-    <p class="msg gate-lead">ログインすると、iPhone・iPad・PCで記録が自動で同期されます。</p>
-    <!-- keep only the login fields inside the form, so iPhone treats it as a login (not sign-up) form -->
-    <form class="gate-login" id="gateForm" method="post" action="#" autocomplete="on" novalidate>
-    <div class="field"><label for="gateEmail">メールアドレス</label><input id="gateEmail" name="email" type="email" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
-    <div class="field"><label for="gatePass">パスワード</label><input id="gatePass" name="password" type="password" autocomplete="current-password"></div>
-    <p class="msg" id="gateMsg" aria-live="polite"></p>
-    <button class="btn primary gate-main" type="submit">ログイン</button>
-    </form>
-    <div class="gate-sub">
-      <button class="btn" id="gateSignup" type="button">新規登録</button>
-      <button class="btn" id="gateReset" type="button">パスワードを忘れた</button>
-    </div>
+    <!-- the settings tab's login form is moved in here while this screen is up (same form = iPhone AutoFill works the same) -->
+    <div id="gateSlot"></div>
     <div class="gate-or"><span>または</span></div>
     <button class="btn gate-skip" id="gateSkip" type="button">ログインせずに使う</button>
     <p class="msg gate-note">記録はこの端末だけに保存されます。あとから設定タブの「同期」でログインすれば、この端末の記録も同期されます。</p>
@@ -2249,38 +2233,17 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
     // login screen shown on open when not logged in (can be skipped)
     const LS_NOGATE = 'tsum-coin-no-login-screen';
     let gateSkipped = false;
-    const gmsg = (t, bad) => { const m = $('gateMsg'); m.textContent = t; m.className = 'msg' + (bad ? ' bad' : t ? ' ok' : ''); };
+    const formHome = $('loginForm').parentNode, formNext = $('loginForm').nextSibling;
+    let formWasHidden = true;
     function setGate(open){
+      const f = $('loginForm'), inGate = f.parentNode === $('gateSlot');
+      if (open && !inGate){ formWasHidden = f.hidden; $('gateSlot').appendChild(f); f.hidden = false; $('syncMsg').textContent = ''; }
+      if (!open && inGate){ formHome.insertBefore(f, formNext); f.hidden = formWasHidden; }
       $('gate').hidden = !open;
       document.documentElement.classList.toggle('gate-open', open);
       window.scrollTo(0, 0);
-      // only one login form on the page while the login screen is up, so iPhone AutoFill picks the right fields
-      $('syncEmail').disabled = $('syncPass').disabled = open;
-      // iPhone checks for login fields only when they appear; the login screen is hidden at page load,
-      // so put fresh copies of the two fields in once it is visible to make AutoFill notice them
-      if (open) requestAnimationFrame(() => {
-        for (const id of ['gateEmail', 'gatePass']){ const el = $(id), c = el.cloneNode(true); c.value = el.value; el.replaceWith(c); }
-      });
-      if (open){ gmsg(''); $('gateNoShow').checked = false; }
+      if (open) $('gateNoShow').checked = false;
     }
-    const gcreds = () => [$('gateEmail').value.trim(), $('gatePass').value];
-    $('gateForm').addEventListener('submit', e => {
-      e.preventDefault(); const [m, p] = gcreds();
-      if (!m || !p) return gmsg('メールアドレスとパスワードを入れてください。', true);
-      gmsg('ログイン中…'); auth.signInWithEmailAndPassword(m, p).catch(err => gmsg(errText(err), true));
-    });
-    $('gateSignup').addEventListener('click', () => {
-      const [m, p] = gcreds();
-      if (!m || !p) return gmsg('登録したいメールアドレスとパスワードを入れてください。', true);
-      gmsg('登録中…'); auth.createUserWithEmailAndPassword(m, p).catch(err => gmsg(errText(err), true));
-    });
-    $('gateReset').addEventListener('click', () => {
-      const m = $('gateEmail').value.trim();
-      if (!m) return gmsg('登録したメールアドレスを入れてから、もう一度押してください。', true);
-      gmsg('送信中…');
-      auth.sendPasswordResetEmail(m).then(() => gmsg(`${m} にパスワード再設定のメールを送りました。メールのリンクから新しいパスワードを決めて、ここでログインしてください。`))
-        .catch(err => gmsg(errText(err), true));
-    });
     $('gateSkip').addEventListener('click', () => {
       if ($('gateNoShow').checked){ try { localStorage.setItem(LS_NOGATE, '1'); } catch(_) {} }
       gateSkipped = true; setGate(false);
