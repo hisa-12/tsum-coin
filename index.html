@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.21', date: '2026/11/06 15:10' };
+window.APP_VERSION = { no: '2.22', date: '2026/11/06 15:19' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -894,10 +894,10 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       <div id="syncOff" hidden>
         <p class="msg">同期の設定（Firebase）がまだ入っていません。設定が入るまでは、この端末だけに保存します。</p>
       </div>
-      <form id="loginForm" class="sync-form" novalidate hidden>
+      <form id="loginForm" class="sync-form" method="post" action="#" autocomplete="on" novalidate hidden>
         <p class="msg">メールアドレスとパスワードでログインすると、iPhone・iPad・PCで記録が自動で同期されます。どの端末でも同じメールアドレスとパスワードでログインしてください。</p>
-        <div class="field"><label for="syncEmail">メールアドレス</label><input id="syncEmail" type="email" autocomplete="username" inputmode="email"></div>
-        <div class="field"><label for="syncPass">パスワード（6文字以上）</label><input id="syncPass" type="password" autocomplete="current-password"></div>
+        <div class="field"><label for="syncEmail">メールアドレス</label><input id="syncEmail" name="email" type="email" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+        <div class="field"><label for="syncPass">パスワード（6文字以上）</label><input id="syncPass" name="password" type="password" autocomplete="current-password"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn primary" id="loginBtn" type="submit">ログイン</button>
           <button class="btn" id="signupBtn" type="button">はじめて使う（新規登録）</button>
@@ -969,12 +969,12 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
 <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastText"></span><button type="button" class="btn" id="toastUndo">元に戻す</button></div>
 
 <div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle" hidden>
-  <form class="gate-card" id="gateForm" novalidate>
+  <form class="gate-card" id="gateForm" method="post" action="#" autocomplete="on" novalidate>
     <img src="icon-180.png" alt="" class="gate-icon" width="72" height="72">
     <h2 id="gateTitle">ツムツム コイン帳</h2>
     <p class="msg gate-lead">ログインすると、iPhone・iPad・PCで記録が自動で同期されます。</p>
-    <div class="field"><label for="gateEmail">メールアドレス</label><input id="gateEmail" type="email" autocomplete="username" inputmode="email"></div>
-    <div class="field"><label for="gatePass">パスワード（6文字以上）</label><input id="gatePass" type="password" autocomplete="current-password"></div>
+    <div class="field"><label for="gateEmail">メールアドレス</label><input id="gateEmail" name="email" type="email" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+    <div class="field"><label for="gatePass">パスワード（6文字以上）</label><input id="gatePass" name="password" type="password" autocomplete="current-password"></div>
     <p class="msg" id="gateMsg" aria-live="polite"></p>
     <button class="btn primary gate-main" type="submit">ログイン</button>
     <div class="gate-sub">
@@ -2246,6 +2246,8 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     function setGate(open){
       $('gate').hidden = !open;
       document.documentElement.classList.toggle('gate-open', open);
+      // only one login form on the page while the login screen is up, so iPhone AutoFill picks the right fields
+      $('syncEmail').disabled = $('syncPass').disabled = open;
       if (open){ gmsg(''); $('gateNoShow').checked = false; }
     }
     const gcreds = () => [$('gateEmail').value.trim(), $('gatePass').value];
