@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.27', date: '2026/11/06 16:01' };
+window.APP_VERSION = { no: '2.28', date: '2026/11/06 16:06' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -454,9 +454,10 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
 /* login screen: same form as the settings tab, laid out like a login page (layout only — contents untouched for AutoFill) */
 #gateSlot .sync-form{display:flex;flex-direction:column;gap:12px;margin:0}
 #gateSlot .sync-form > p.msg:first-child{text-align:center;margin:0 0 4px}
-#gateSlot .sync-form > div:not(.field){display:grid !important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px !important}
-#gateSlot #loginBtn{grid-column:1 / -1;padding:12px;font-size:16px}
-#gateSlot #signupBtn,#gateSlot #resetPassBtn{font-size:12.5px;padding-left:6px;padding-right:6px;min-width:0;line-height:1.3}
+/* the two small buttons sit side by side when they fit, otherwise each takes its own full line (never breaks mid-word) */
+#gateSlot .sync-form > div:not(.field){display:flex !important;flex-wrap:wrap;gap:8px !important}
+#gateSlot #loginBtn{flex:1 1 100%;padding:12px;font-size:16px}
+#gateSlot #signupBtn,#gateSlot #resetPassBtn{flex:1 1 auto;font-size:13px;padding-left:10px;padding-right:10px;white-space:nowrap}
 #gateSlot #syncMsg{margin:0}
 .gate-check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--muted)}
 .gate-check input{width:18px;height:18px;accent-color:var(--teal)}
