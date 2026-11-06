@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.23', date: '2026/11/06 15:28' };
+window.APP_VERSION = { no: '2.24', date: '2026/11/06 15:34' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -447,6 +447,7 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
 .gate-card .field label{font-size:12px;font-weight:700;color:var(--muted)}
 .gate-card .field input{font:inherit;font-size:16px;padding:11px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box}
 .gate-card .field input:focus{outline:none;border-color:var(--coin)}
+.gate-login{display:flex;flex-direction:column;gap:12px;margin:0}
 .gate-card #gateMsg{margin:0;min-height:0}
 .gate-card #gateMsg:empty{display:none}
 .gate-main{padding:12px;font-size:16px}
@@ -969,14 +970,17 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
 <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastText"></span><button type="button" class="btn" id="toastUndo">元に戻す</button></div>
 
 <div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle" hidden>
-  <form class="gate-card" id="gateForm" method="post" action="#" autocomplete="on" novalidate>
+  <div class="gate-card">
     <img src="icon-180.png" alt="" class="gate-icon" width="72" height="72">
     <h2 id="gateTitle">ツムツム コイン帳</h2>
     <p class="msg gate-lead">ログインすると、iPhone・iPad・PCで記録が自動で同期されます。</p>
+    <!-- keep only the login fields inside the form, so iPhone treats it as a login (not sign-up) form -->
+    <form class="gate-login" id="gateForm" method="post" action="#" autocomplete="on" novalidate>
     <div class="field"><label for="gateEmail">メールアドレス</label><input id="gateEmail" name="email" type="email" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
-    <div class="field"><label for="gatePass">パスワード（6文字以上）</label><input id="gatePass" name="password" type="password" autocomplete="current-password"></div>
+    <div class="field"><label for="gatePass">パスワード</label><input id="gatePass" name="password" type="password" autocomplete="current-password"></div>
     <p class="msg" id="gateMsg" aria-live="polite"></p>
     <button class="btn primary gate-main" type="submit">ログイン</button>
+    </form>
     <div class="gate-sub">
       <button class="btn" id="gateSignup" type="button">新規登録</button>
       <button class="btn" id="gateReset" type="button">パスワードを忘れた</button>
@@ -985,7 +989,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     <button class="btn gate-skip" id="gateSkip" type="button">ログインせずに使う</button>
     <p class="msg gate-note">記録はこの端末だけに保存されます。あとから設定タブの「同期」でログインすれば、この端末の記録も同期されます。</p>
     <label class="gate-check"><input type="checkbox" id="gateNoShow"> 次から、ログインしていなくてもこの画面を出さない</label>
-  </form>
+  </div>
 </div>
 
 <script>
