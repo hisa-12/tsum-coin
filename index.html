@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.16', date: '2026/11/06 14:28' };
+window.APP_VERSION = { no: '2.17', date: '2026/11/06 14:38' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -371,6 +371,8 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 #chart .cbar.sel{stroke:var(--ink);stroke-width:1.5}
 #chart .hit{fill:transparent;cursor:pointer}
 #chart text{fill:var(--muted);font-size:10px;font-family:var(--font-body);font-variant-numeric:tabular-nums}
+#chart .vtag rect{fill:var(--ink)}
+#chart .vtag text{fill:var(--bg);font-size:11px;font-weight:700}
 #chart text.avgl{fill:var(--coin-deep);font-weight:700}
 .chart-foot{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:2px 14px}
 .chart-foot b{color:var(--ink)}
@@ -1516,6 +1518,21 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     const avg = played.length ? played.reduce((s2, d) => s2 + d.v, 0) / played.length : null;
     if (avg != null) g += `<line class="avg" x1="${L}" x2="${W - R}" y1="${y(avg)}" y2="${y(avg)}"/>`;
     $('chart').innerHTML = g;
+    // value tag over the tapped bar
+    const si = days.findIndex(d => d.k === chartSel && d.v != null);
+    if (si >= 0){
+      const d = days[si], cx = L + step * si + step / 2, NS = 'http://www.w3.org/2000/svg';
+      const tag = document.createElementNS(NS, 'g'); tag.setAttribute('class', 'vtag');
+      const r = document.createElementNS(NS, 'rect'), t = document.createElementNS(NS, 'text');
+      t.textContent = fmtFull(d.v); t.setAttribute('text-anchor', 'middle');
+      tag.append(r, t); $('chart').appendChild(tag);
+      const tw = t.getBBox().width || t.textContent.length * 7, pw = tw + 12, ph = 18;
+      const x = Math.min(W - R - pw / 2, Math.max(pw / 2 + 1, cx));
+      const below = d.v < base, edge = below ? y(d.v) + 4 : y(d.v) - 4 - ph;
+      const ty = Math.min(T + ch - ph, Math.max(0, edge));
+      r.setAttribute('x', x - pw / 2); r.setAttribute('y', ty); r.setAttribute('width', pw); r.setAttribute('height', ph); r.setAttribute('rx', 6);
+      t.setAttribute('x', x); t.setAttribute('y', ty + 12.5);
+    }
     $('chart').setAttribute('aria-label', `${U.name}ごとの${METRICS[M]}の棒グラフ`);
     const f = days[0].start, todayD = bucketStart('day', 0);
     let l = bucketEnd(chartUnit, days[days.length - 1].start); if (l > todayD) l = todayD;
