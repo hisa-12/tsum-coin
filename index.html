@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.34', date: '2026/11/06 19:47' };
+window.APP_VERSION = { no: '2.35', date: '2026/11/06 22:57' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -489,6 +489,29 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
 .toast .btn{background:transparent;color:var(--coin);border-color:color-mix(in srgb,var(--coin) 60%,transparent);white-space:nowrap}
 @media (min-width:1100px){.toast{bottom:calc(env(safe-area-inset-bottom, 0px) + 24px)}}
 .hist-tools{gap:8px}
+.undo-bar{display:flex;flex-direction:column;gap:6px;margin:-2px 0 10px}
+.undo-bar[hidden],.steps-panel[hidden]{display:none}
+.undo-btns{display:flex;gap:8px;flex-wrap:wrap}
+.undo-btns .btn{white-space:nowrap}
+.undo-btns .btn:disabled{opacity:.4}
+#stepsBtn{margin-left:auto}
+.undo-what{margin:0;font-size:12px;color:var(--muted);line-height:1.5}
+.undo-what{display:flex;flex-direction:column;gap:4px}
+.undo-what b{color:var(--ink)}
+.undo-what .uw{display:flex;gap:8px;align-items:baseline}
+.undo-what .uw .k{flex:none;font-weight:700;width:6.2em}
+.undo-what .dt{display:block}
+.steps-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.steps-list li{display:flex;align-items:baseline;gap:10px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);cursor:pointer}
+.steps-list li .tm{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+.steps-list li .lb{font-size:13.5px;font-weight:700;min-width:0}
+.steps-list li .dt{display:block;font-size:12px;font-weight:500;color:var(--muted)}
+.steps-list li.undone{opacity:.55}
+.steps-list li.undone .lb{text-decoration:line-through}
+.steps-list li.now{border-color:var(--teal);box-shadow:inset 0 0 0 1px var(--teal)}
+.steps-list li .tag{margin-left:auto;flex:none;font-size:11px;font-weight:800;color:var(--teal);white-space:nowrap}
+.steps-list li.undone .tag{color:var(--muted)}
+.steps-list li.start .lb{font-weight:600;color:var(--muted)}
 .istat tbody tr{cursor:pointer}
 .istat tbody tr:hover td{background:color-mix(in srgb,var(--coin) 8%,transparent)}
 .istat tr.picked td{background:color-mix(in srgb,var(--coin) 16%,transparent)}
@@ -770,7 +793,20 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
   <section id="secHist">
     <button class="hist-toggle" id="histToggle" type="button" aria-expanded="false" aria-controls="histBody"><span class="chev" aria-hidden="true">▸</span><span>プレイ履歴</span><span class="hist-count" id="histCount"></span><span class="hist-hint">タップで表示</span></button>
     <div id="histBody" hidden>
-    <div class="hist-tools"><button class="btn" id="undoBtn" type="button" hidden>元に戻す</button><button class="btn" id="selToggle" type="button">まとめて選択</button></div>
+    <div class="undo-bar" id="undoBar" hidden>
+      <div class="undo-btns">
+        <button class="btn" id="undoBtn" type="button">↶ 元に戻す</button>
+        <button class="btn" id="redoBtn" type="button">↷ やり直す</button>
+        <button class="btn" id="stepsBtn" type="button" aria-expanded="false" aria-controls="stepsPanel">操作の履歴</button>
+      </div>
+      <p class="undo-what" id="undoWhat"></p>
+    </div>
+    <div class="bulk steps-panel" id="stepsPanel" hidden>
+      <div class="ed-head"><b>操作の履歴</b><span class="msg">アプリを開いている間の操作</span></div>
+      <p class="msg">行をタップすると、その操作をした直後の状態にできます。いちばん下を選ぶと、操作をする前に戻ります。</p>
+      <ol class="steps-list" id="stepsList"></ol>
+    </div>
+    <div class="hist-tools"><button class="btn" id="selToggle" type="button">まとめて選択</button></div>
     <div class="bulk" id="bulk" hidden>
       <div class="ed-head"><b id="bulkCount">0件選択中</b><button class="btn" id="bulkAll" type="button">表示中をすべて選択</button></div>
       <p class="msg">変えたい項目だけ入力してください。空欄の項目は変更しません。</p>
@@ -1249,7 +1285,7 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
     if (ch) rec.chara = ch;
     lsSet(LS_CHARA, ch);
     lsSet(LS_STOP, '0');
-    remember('記録しました', [rec.id]);
+    remember('記録を追加', [rec.id]);
     plays.push(rec);
     tick();
     save();
@@ -1944,7 +1980,7 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
     const cost = toInt($('bulkCost').value);
     const fail = t => { $('bulkErr').textContent = t; $('bulkErr').hidden = false; };
     if (!ch && isNaN(cost)) return fail('変更する項目を1つ以上入力してください。');
-    remember(`${selected.size}件の記録をまとめて変更しました`, [...selected]);
+    remember(`${selected.size}件の記録をまとめて変更`, [...selected]);
     for (const x of plays){
       if (!selected.has(x.id)) continue;
       if (ch){ if (ch === NONE) delete x.chara; else x.chara = ch; }
@@ -1979,7 +2015,7 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
     const mErr = $('edMult').value.trim() && !(toMult($('edMult').value) >= 1);
     if (!err && mErr){ $('edErr').textContent = '倍率は「1.3」のように1.0以上の数字で入れてください。'; $('edErr').hidden = false; return; }
     if (err){ $('edErr').textContent = err; $('edErr').hidden = false; return; }
-    remember('記録を変更しました', [x.id]);
+    remember('記録を変更', [x.id]);
     if (edMultTouched) x.est = true;
     else if (p !== x.play) delete x.est;
     if (edPick.used) { if (edPick.set.size) x.items = [...edPick.set]; else delete x.items; }
@@ -1998,45 +2034,85 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
       setTimeout(() => { if (d.classList.contains('armed')) resetDel(); }, 3000);
       return;
     }
-    remember('記録を削除しました', [editingId]);
+    remember('記録を削除', [editingId]);
     plays = plays.filter(x => x.id !== editingId); save(); closeEditor();
   });
 
-  /* ---- undo for edits and deletions (kept while the app is open) ---- */
-  const undoStack = [];
+  /* ---- undo / redo for adds, edits and deletions (kept while the app is open) ----
+     steps[0..pos-1] are in effect; steps[pos..] were undone and can be redone */
+  const steps = []; let pos = 0; const MAX_STEPS = 30;
   function snapshotFor(ids){
     const m = new Map();
     for (const id of ids){ const x = plays.find(p => p.id === id); m.set(id, x ? JSON.parse(JSON.stringify(x)) : null); }
     return m;
   }
+  const recText = x => { const d = new Date(x.at); return `${dayLabel(x.day)}${pad(d.getHours())}:${pad(d.getMinutes())}の記録・獲得 ${fmt(x.result)}・純利益 ${sfmt(x.result - costOf(x))}`; };
   // call BEFORE changing the records; label says what happened
   function remember(label, ids){
-    undoStack.push({label, before: snapshotFor(ids)});
-    if (undoStack.length > 20) undoStack.shift();
-    setTimeout(() => showToast(label), 0);
+    steps.length = pos;                                   // a new change drops anything that was undone
+    const st = {label, at: new Date(), ids: [...ids], before: snapshotFor(ids), after: null, detail: ''};
+    steps.push(st); if (steps.length > MAX_STEPS) steps.shift(); pos = steps.length;
+    setTimeout(() => {
+      // one-record changes get a short description of which record it was
+      if (ids.length === 1){ const x = plays.find(p => p.id === ids[0]) || st.before.get(ids[0]); if (x) st.detail = recText(x); }
+      else st.detail = `${ids.length}件`;
+      showToast(`${label}しました`, 'undo'); refreshUndo();
+    }, 0);
   }
-  let toastTimer = null;
-  function showToast(label){
-    $('toastText').textContent = label; $('toastUndo').hidden = !undoStack.length;
-    $('toast').hidden = false; clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { $('toast').hidden = true; }, 8000);
-    $('undoBtn').hidden = !undoStack.length;
-    $('undoBtn').textContent = `元に戻す（${undoStack.length}）`;
-  }
-  function undo(){
-    const u = undoStack.pop(); if (!u) return;
-    for (const [id, rec] of u.before){
+  function applySnap(snap){
+    for (const [id, rec] of snap){
       const i = plays.findIndex(p => p.id === id);
       if (rec === null){ if (i >= 0) plays.splice(i, 1); }
-      else if (i >= 0) plays[i] = rec; else plays.push(rec);
+      else if (i >= 0) plays[i] = JSON.parse(JSON.stringify(rec)); else plays.push(JSON.parse(JSON.stringify(rec)));
     }
-    save(); render();
-    const wd = $('wipeDone'); if (wd) wd.hidden = true;
-    $('undoBtn').hidden = !undoStack.length; $('undoBtn').textContent = `元に戻す（${undoStack.length}）`;
-    $('toastText').textContent = `「${u.label}」を元に戻しました`; $('toastUndo').hidden = !undoStack.length;
-    $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 5000);
   }
-  $('toastUndo').addEventListener('click', undo);
+  const stepBack = () => { const st = steps[--pos]; st.after = snapshotFor(st.ids); applySnap(st.before); return st; };
+  const stepFwd = () => { const st = steps[pos++]; applySnap(st.after); return st; };
+  function afterMove(){ save(); render(); const wd = $('wipeDone'); if (wd) wd.hidden = true; refreshUndo(); }
+  function goTo(n){
+    n = Math.max(0, Math.min(steps.length, n)); if (n === pos) return;
+    const back = n < pos, cnt = Math.abs(n - pos);
+    while (pos > n) stepBack(); while (pos < n) stepFwd();
+    afterMove();
+    showToast(back ? `${cnt}つ前の状態に戻しました` : `${cnt}つ先の状態に進めました`, back ? 'redo' : 'undo');
+  }
+  function undo(){ if (!pos) return; const st = stepBack(); afterMove(); showToast(`「${st.label}」を取り消しました`, 'redo'); }
+  function redo(){ if (pos >= steps.length) return; const st = stepFwd(); afterMove(); showToast(`「${st.label}」をやり直しました`, 'undo'); }
+  const tmText = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  function refreshUndo(){
+    $('undoBar').hidden = !steps.length;
+    $('undoBtn').disabled = !pos; $('redoBtn').disabled = pos >= steps.length;
+    const u = steps[pos - 1], r = steps[pos];
+    const line = (st, k, v) => `<span class="uw"><span class="k">${k}</span><span><b>${esc(st.label)}</b>${v}${st.detail ? `<span class="dt">${esc(st.detail)}</span>` : ''}</span></span>`;
+    $('undoWhat').innerHTML = (u ? line(u, '↶ 元に戻すと', 'を取り消します') : '<span class="uw"><span class="k">↶ 元に戻すと</span><span>取り消せる操作はありません</span></span>')
+      + (r ? line(r, '↷ やり直すと', 'をもう一度します') : '');
+    if (!$('stepsPanel').hidden) renderSteps();
+    if (!steps.length){ $('stepsPanel').hidden = true; $('stepsBtn').setAttribute('aria-expanded', 'false'); }
+  }
+  function renderSteps(){
+    let h = '';
+    for (let i = steps.length - 1; i >= 0; i--){
+      const st = steps[i], undone = i >= pos, now = i === pos - 1;
+      h += `<li data-n="${i + 1}" class="${undone ? 'undone' : ''}${now ? ' now' : ''}"><span class="tm">${tmText(st.at)}</span><span class="lb">${esc(st.label)}${st.detail ? `<span class="dt">${esc(st.detail)}</span>` : ''}</span><span class="tag">${now ? '今の状態' : undone ? '取り消し中' : ''}</span></li>`;
+    }
+    h += `<li data-n="0" class="start${pos === 0 ? ' now' : ''}"><span class="tm">　　</span><span class="lb">操作をする前（アプリを開いたとき）</span><span class="tag">${pos === 0 ? '今の状態' : ''}</span></li>`;
+    $('stepsList').innerHTML = h;
+  }
+  $('stepsList').addEventListener('click', e => { const li = e.target.closest('li[data-n]'); if (li) goTo(+li.dataset.n); });
+  $('stepsBtn').addEventListener('click', () => {
+    const p = $('stepsPanel'); p.hidden = !p.hidden; $('stepsBtn').setAttribute('aria-expanded', String(!p.hidden));
+    if (!p.hidden) renderSteps();
+  });
+  $('redoBtn').addEventListener('click', redo);
+  let toastTimer = null, toastMode = 'undo';
+  function showToast(label, mode){
+    toastMode = mode;
+    const can = mode === 'redo' ? pos < steps.length : pos > 0;
+    $('toastText').textContent = label; $('toastUndo').textContent = mode === 'redo' ? 'やり直す' : '元に戻す'; $('toastUndo').hidden = !can;
+    $('toast').hidden = false; clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { $('toast').hidden = true; }, mode === 'redo' ? 6000 : 8000);
+  }
+  $('toastUndo').addEventListener('click', () => toastMode === 'redo' ? redo() : undo());
   // swipe the notice sideways or down to close it
   (() => {
     const t = $('toast');
@@ -2115,7 +2191,7 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
     const ids = itemList.filter(x => comboOf(x) === comboSel).map(x => x.id), set = new Set(ids);
     if (!ids.length) return closeCombo();
     const from = comboSel;
-    remember(`「${from}」の${ids.length}件を変更しました`, ids);
+    remember(`「${from}」の${ids.length}件を変更`, ids);
     for (const x of plays){
       if (!set.has(x.id)) continue;
       x.cost = isNaN(cost) ? 0 : cost;
@@ -2606,7 +2682,7 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
       const v = row.querySelector('input').value.trim();
       editingChara = null;
       if (v && v !== n){
-        window.__remember(`キャラ名を「${v}」に変更しました`, plays.filter(x => charaOf(x) === n).map(x => x.id));
+        window.__remember(`キャラ名を「${v}」に変更`, plays.filter(x => charaOf(x) === n).map(x => x.id));
         for (const x of plays) if (charaOf(x) === n) x.chara = v;
         settings.hiddenCharas = settings.hiddenCharas.filter(h => h !== n);
         if (charaIn.value.trim() === n){ charaIn.value = v; lsSet(LS_CHARA, v); }
@@ -2634,7 +2710,7 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
   $('wipeCancel').addEventListener('click', () => { $('wipeConfirm').hidden = true; });
   $('wipeDo').addEventListener('click', () => {
     if (!$('wipeAgree').checked) return;
-    window.__remember(`${plays.length}件の記録を削除しました`, plays.map(x => x.id));
+    window.__remember(`${plays.length}件の記録をすべて削除`, plays.map(x => x.id));
     const n = plays.length; plays = []; save();
     mark = 0; lsSet(LS_MARK, '0');
     $('wipeConfirm').hidden = true; $('wipeDone').textContent = `${n}件の記録を削除しました。`; $('wipeDone').hidden = false;
