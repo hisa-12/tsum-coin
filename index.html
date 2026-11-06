@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.31', date: '2026/11/06 16:32' };
+window.APP_VERSION = { no: '2.32', date: '2026/11/06 16:34' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -471,6 +471,9 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
 /* iPhone AutoFill paints filled fields yellow; keep the app's own colors */
 .sync-form input:-webkit-autofill,.sync-form input:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 100px var(--bg) inset;box-shadow:0 0 0 100px var(--bg) inset;-webkit-text-fill-color:var(--ink);caret-color:var(--ink);transition:background-color 9999s}
 #gateSlot #syncMsg{margin:0}
+.gate-reload{align-self:center;font-size:13px;padding:8px 16px}
+.gate-reload-msg{margin:0;text-align:center}
+.gate-reload-msg:empty{display:none}
 .gate-ver{margin:4px 0 0;text-align:center;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .gate-check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--muted)}
 .gate-check input{width:18px;height:18px;accent-color:var(--teal)}
@@ -998,6 +1001,8 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
     <p class="msg gate-note">記録はこの端末だけに保存されます。あとから設定タブの「同期」でログインすれば、この端末の記録も同期されます。</p>
     <label class="gate-check"><input type="checkbox" id="gateNoShow"> 次から、ログインしていなくてもこの画面を出さない</label>
     <p class="gate-ver" id="gateVersion"></p>
+    <button class="btn gate-reload" id="gateReload" type="button">最新版に更新（読み込み直す）</button>
+    <p class="msg gate-reload-msg" id="gateReloadMsg" aria-live="polite"></p>
   </div>
 </div>
 
@@ -2488,8 +2493,8 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
 
   { const v = window.APP_VERSION || {}; $('appVersion').textContent = `ツムツム コイン帳　バージョン ${v.no || '?'}（${v.date || ''}）`; $('gateVersion').textContent = `バージョン ${v.no || '?'}（${v.date || ''}）`; }
   // force a fresh copy of the app (home-screen apps can keep an old one even after closing)
-  $('forceReload').addEventListener('click', async () => {
-    const btn = $('forceReload'), m = $('reloadMsg'), cur = (window.APP_VERSION || {}).no || '?';
+  const forceReload = async (btn, m) => {
+    const cur = (window.APP_VERSION || {}).no || '?';
     btn.disabled = true; m.textContent = '最新版を確認しています…';
     try {
       const r = await fetch(location.pathname + '?check=' + Date.now(), {cache: 'no-store'});
@@ -2499,7 +2504,9 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
       m.textContent = latest && latest !== cur ? `バージョン ${latest} があります。読み込み直します…` : `今のバージョン（${cur}）が最新です。念のため読み込み直します…`;
     } catch(_) { m.textContent = '読み込み直します…'; }
     setTimeout(() => location.replace(location.pathname + '?r=' + Date.now()), 700);
-  });
+  };
+  $('forceReload').addEventListener('click', () => forceReload($('forceReload'), $('reloadMsg')));
+  $('gateReload').addEventListener('click', () => forceReload($('gateReload'), $('gateReloadMsg')));
   // tidy the address after a forced reload
   if (/[?&]r=\d+/.test(location.search)) { try { history.replaceState(null, '', location.pathname); } catch(_) {} }
   /* ---- settings screen ---- */
