@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.13', date: '2026/11/06 14:07' };
+window.APP_VERSION = { no: '2.14', date: '2026/11/06 14:11' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -2347,8 +2347,16 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   /* ---- tabs ---- */
   const wideMQ = window.matchMedia('(min-width:1100px)');
   let curTab = 'rec';
+  // each tab remembers where it was scrolled; tapping the tab you are already on goes back to the top
+  const tabScroll = {};
+  let tabReady = false;
+  const scroller = () => wideMQ.matches ? document.querySelector('.col-main') : null;
+  const getY = () => { const el = scroller(); return el ? el.scrollTop : window.scrollY; };
+  const setY = y => { const el = scroller(); if (el) el.scrollTop = y; else window.scrollTo(0, y); };
   function showTab(t){
     if (wideMQ.matches && t === 'rec') t = (curTab === 'rec' ? 'sum' : curTab);
+    if (tabReady && t === curTab){ setY(0); return; }
+    if (tabReady) tabScroll[curTab] = getY();
     curTab = t;
     document.querySelectorAll('#tabbar button').forEach(b => b.setAttribute('aria-current', b.dataset.tab === t ? 'page' : 'false'));
     document.querySelectorAll('.tabpage').forEach(p => { p.hidden = p.dataset.page !== t; });
@@ -2359,10 +2367,12 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     if (t === 'sum' && cal.parentNode !== $('tabSum')) $('tabSum').appendChild(cal);
     if (t === 'set') showGoalForm();
     if (t === 'sum') renderChart();
-    if (wideMQ.matches) document.querySelector('.col-main').scrollTop = 0; else window.scrollTo(0, 0);
+    const y = tabScroll[t] || 0;
+    setY(y); requestAnimationFrame(() => setY(y));   // again after the page has been laid out
+    tabReady = true;
   }
   $('tabbar').addEventListener('click', e => { const b = e.target.closest('button[data-tab]'); if (b) showTab(b.dataset.tab); });
-  if (wideMQ.addEventListener) wideMQ.addEventListener('change', () => showTab(curTab));
+  if (wideMQ.addEventListener) wideMQ.addEventListener('change', () => { tabReady = false; showTab(curTab); });
 
   /* ---- theme: auto / light / dark ---- */
   const LS_THEME = 'tsum-coin-theme';
