@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.22', date: '2026/11/06 15:19' };
+window.APP_VERSION = { no: '2.23', date: '2026/11/06 15:28' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -2248,6 +2248,11 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       document.documentElement.classList.toggle('gate-open', open);
       // only one login form on the page while the login screen is up, so iPhone AutoFill picks the right fields
       $('syncEmail').disabled = $('syncPass').disabled = open;
+      // iPhone checks for login fields only when they appear; the login screen is hidden at page load,
+      // so put fresh copies of the two fields in once it is visible to make AutoFill notice them
+      if (open) requestAnimationFrame(() => {
+        for (const id of ['gateEmail', 'gatePass']){ const el = $(id), c = el.cloneNode(true); c.value = el.value; el.replaceWith(c); }
+      });
       if (open){ gmsg(''); $('gateNoShow').checked = false; }
     }
     const gcreds = () => [$('gateEmail').value.trim(), $('gatePass').value];
