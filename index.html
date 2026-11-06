@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.18', date: '2026/11/06 14:43' };
+window.APP_VERSION = { no: '2.19', date: '2026/11/06 14:52' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -346,7 +346,15 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 .cal-w.hit{background:color-mix(in srgb,var(--teal) 24%,var(--surface))}
 .cal-detail .row{display:flex;flex-wrap:wrap;gap:2px 14px}
 .cal-detail .row > span{white-space:nowrap}
-.chart-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 12px 10px;margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.chart-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 12px 10px;margin-top:10px;display:flex;flex-direction:column;gap:6px;position:relative}
+.chart-tip{position:absolute;z-index:3;display:flex;flex-direction:column;gap:1px;padding:7px 12px 8px;border-radius:12px;background:var(--bg);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none;white-space:nowrap}
+.chart-tip[hidden],.chart-tip-line[hidden]{display:none}
+.chart-tip .tl{font-size:11px;font-weight:700;color:var(--muted)}
+.chart-tip .tv{font-variant-numeric:tabular-nums;line-height:1.1}
+.chart-tip .tv b{font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+.chart-tip .tv small{font-size:12px;font-weight:700;color:var(--muted);margin:0 3px 0 2px}
+.chart-tip .td{font-size:11.5px;font-weight:700;color:var(--muted)}
+.chart-tip-line{position:absolute;z-index:2;width:2px;background:var(--muted);opacity:.6;pointer-events:none}
 .chart-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .chart-head .k{font-size:12px;font-weight:700;color:var(--muted)}
 .chart-title{display:flex;align-items:center;gap:4px;min-width:0}
@@ -371,9 +379,6 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 #chart .cbar.sel{stroke:var(--ink);stroke-width:1.5}
 #chart .hit{fill:transparent;cursor:pointer}
 #chart text{fill:var(--muted);font-size:10px;font-family:var(--font-body);font-variant-numeric:tabular-nums}
-#chart .vtag{pointer-events:none}
-#chart .vtag rect{fill:var(--ink)}
-#chart .vtag text{fill:var(--bg);font-size:11px;font-weight:700}
 #chart text.avgl{fill:var(--coin-deep);font-weight:700}
 .chart-foot{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:2px 14px}
 .chart-foot b{color:var(--ink)}
@@ -691,6 +696,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
         <button type="button" id="chartNext" aria-label="後の期間へ">›</button>
         <button type="button" class="btn" id="chartToday" hidden>今日へ</button>
       </div>
+      <div class="chart-tip" id="chartTip" hidden></div><div class="chart-tip-line" id="chartTipLine" hidden></div>
       <div class="chart-wrap"><svg id="chart" viewBox="0 0 360 180" role="img" aria-label="日ごとの純利益の棒グラフ"></svg></div>
       <div class="chart-foot num" id="chartFoot"></div>
     </div>
@@ -1521,22 +1527,26 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     if (avg != null) g += `<line class="avg" x1="${L}" x2="${W - R}" y1="${y(avg)}" y2="${y(avg)}"/>`;
     $('chart').innerHTML = g;
     // value tag over the tapped bar
+    // Health-app style callout: label, big value, date, with a line down to the bar
+    const tipVal = v => M === 'count' ? `<b>${Number.isInteger(v) ? fmt(v) : v.toFixed(1)}</b><small>回</small>`
+      : M === 'mult' ? `<b>${v.toFixed(2)}</b><small>倍</small>`
+      : M === 'dur' ? (() => { const h = Math.floor(v / 3600), m = Math.round(v % 3600 / 60); return (h ? `<b>${h}</b><small>時間</small>` : '') + (m || !h ? `<b>${m}</b><small>分</small>` : ''); })()
+      : `<b>${sfmt(Math.round(v))}</b><small>コイン</small>`;
     chartTag = k => {
-    const old = $('chart').querySelector('.vtag'); if (old) old.remove();
-    const si = days.findIndex(d => d.k === k && d.v != null);
-    if (si >= 0){
-      const d = days[si], cx = L + step * si + step / 2, NS = 'http://www.w3.org/2000/svg';
-      const tag = document.createElementNS(NS, 'g'); tag.setAttribute('class', 'vtag');
-      const r = document.createElementNS(NS, 'rect'), t = document.createElementNS(NS, 'text');
-      t.textContent = fmtFull(d.v); t.setAttribute('text-anchor', 'middle');
-      tag.append(r, t); $('chart').appendChild(tag);
-      const tw = t.getBBox().width || t.textContent.length * 7, pw = tw + 12, ph = 18;
-      const x = Math.min(W - R - pw / 2, Math.max(pw / 2 + 1, cx));
-      const below = d.v < base, edge = below ? y(d.v) + 4 : y(d.v) - 4 - ph;
-      const ty = Math.min(T + ch - ph, Math.max(0, edge));
-      r.setAttribute('x', x - pw / 2); r.setAttribute('y', ty); r.setAttribute('width', pw); r.setAttribute('height', ph); r.setAttribute('rx', 6);
-      t.setAttribute('x', x); t.setAttribute('y', ty + 12.5);
-    }
+      const tip = $('chartTip'), line = $('chartTipLine');
+      const si = days.findIndex(d => d.k === k && d.v != null);
+      if (si < 0){ tip.hidden = line.hidden = true; return; }
+      const d = days[si];
+      tip.innerHTML = `<span class="tl">${METRICS[M]}</span><span class="tv">${tipVal(d.v)}</span><span class="td">${bucketName(chartUnit, d)}・${d.n}プレイ</span>`;
+      tip.hidden = line.hidden = false;
+      const card = $('secChart').getBoundingClientRect(), svg = $('chart').getBoundingClientRect(), sc = svg.width / W;
+      const bx = svg.left - card.left + (L + step * si + step / 2) * sc;
+      const gridTop = svg.top - card.top + T * sc, barTop = svg.top - card.top + Math.min(y(d.v), y(base)) * sc;
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      const left = Math.min(card.width - tw - 6, Math.max(6, bx - tw / 2));
+      const top = Math.max(4, gridTop - th - 2);
+      tip.style.left = left + 'px'; tip.style.top = top + 'px';
+      line.style.left = (bx - 1) + 'px'; line.style.top = (top + th) + 'px'; line.style.height = Math.max(0, barTop - top - th - 2) + 'px';
     };
     chartTag(chartSel);
     $('chart').setAttribute('aria-label', `${U.name}ごとの${METRICS[M]}の棒グラフ`);
@@ -1599,6 +1609,8 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   })();
   $('chartRange').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; chartRange = +b.dataset.r; lsSet(LS_RANGE, String(chartRange)); chartSel = ''; chartOff = Math.min(chartOff, chartMaxOff()); renderChart(); });
   $('chartUnit').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; chartUnit = b.dataset.u; lsSet(LS_UNIT, chartUnit); chartSel = ''; chartOff = 0; renderChart(); });
+  // keep the chart width and the callout in place after rotating / resizing
+  let chartRz = 0; window.addEventListener('resize', () => { clearTimeout(chartRz); chartRz = setTimeout(() => { if ($('chart').getBoundingClientRect().width) renderChart(); }, 150); });
   $('chartMetric').addEventListener('change', e => { chartMetric = e.target.value; lsSet(LS_METRIC, chartMetric); chartSel = ''; renderChart(); });
   // mouse/trackpad: show the value while hovering, back to the tapped bar when leaving
   $('chart').addEventListener('pointerover', e => {
