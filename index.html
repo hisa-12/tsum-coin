@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.33', date: '2026/11/06 19:41' };
+window.APP_VERSION = { no: '2.34', date: '2026/11/06 19:47' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -2252,8 +2252,10 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
     });
     // AutoFill (iPhone / iCloud passwords etc.) drops the whole password in at once: log in right away.
     // Typing adds one character at a time, so that never triggers this.
+    let resetAutoLogin = () => {};
     {
       let lastPass = '', tried = '', t = 0;
+      resetAutoLogin = () => { lastPass = ''; tried = ''; clearTimeout(t); };
       const autoLogin = e => {
         const pe = $('syncPass'), ee = $('syncEmail');
         if (!e.target || (e.target !== pe && e.target !== ee)) return;
@@ -2268,7 +2270,7 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
           tried = m + '\n' + p;
           const f = $('loginForm');
           if (f.requestSubmit) f.requestSubmit(); else $('loginBtn').click();
-        }, 350);
+        }, 60);
       };
       $('loginForm').addEventListener('input', autoLogin);
       $('loginForm').addEventListener('change', autoLogin);
@@ -2352,7 +2354,7 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
       if (!user){
         // logged out: start with fresh empty fields (new copies also drop iPhone's yellow AutoFill state)
         if (wasIn) for (const id of ['syncEmail', 'syncPass']){ const el = $(id), c = el.cloneNode(false); c.value = ''; el.replaceWith(c); }
-        wasIn = false; msg('');
+        wasIn = false; msg(''); resetAutoLogin();
         show('loginForm'); setStatus('未ログイン・この端末に保存中');
         let noGate = false; try { noGate = localStorage.getItem(LS_NOGATE) === '1'; } catch(_) {}
         if (!gateSkipped && !noGate) setGate(true);
