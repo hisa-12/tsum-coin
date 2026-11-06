@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.20', date: '2026/11/06 15:03' };
+window.APP_VERSION = { no: '2.21', date: '2026/11/06 15:10' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -371,7 +371,7 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 .chart-nav{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
 .chart-nav > button:not(.btn){border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;width:32px;height:28px;font-size:16px;font-weight:700;flex:none}
 .chart-nav > button:disabled{opacity:.35;cursor:default}
-.chart-nav .btn{padding:3px 10px;font-size:12px;margin-left:auto}
+.chart-nav .btn{padding:3px 10px;font-size:12px;margin-left:auto;white-space:nowrap;flex:none}
 #chart .grid{stroke:var(--line);stroke-width:1}
 #chart .zero{stroke:var(--muted);stroke-width:1}
 #chart .avg{stroke:var(--coin-deep);stroke-width:1.5;stroke-dasharray:4 3;fill:none}
@@ -1533,6 +1533,13 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       : M === 'mult' ? `<b>${v.toFixed(2)}</b><small>倍</small>`
       : M === 'dur' ? (() => { const h = Math.floor(v / 3600), m = Math.round(v % 3600 / 60); return (h ? `<b>${h}</b><small>時間</small>` : '') + (m || !h ? `<b>${m}</b><small>分</small>` : ''); })()
       : `<b>${sfmt(Math.round(v))}</b><small>コイン</small>`;
+    // callout date always carries the year
+    const tipDate = d => {
+      const st = d.start, en = bucketEnd(chartUnit, st);
+      if (chartUnit === 'day') return `${st.getFullYear()}/${dayLabel(d.k)}`;
+      if (chartUnit === 'week') return `${st.getFullYear()}/${md(st)}〜${en.getFullYear() !== st.getFullYear() ? en.getFullYear() + '/' : ''}${md(en)}の週`;
+      return bucketName(chartUnit, d);
+    };
     chartTag = k => {
       const tip = $('chartTip'), line = $('chartTipLine'), sum = $('chartSum');
       let si = days.findIndex(d => d.k === k && d.v != null);
@@ -1540,7 +1547,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       if (si < 0){ tip.hidden = line.hidden = true; sum.classList.remove('off'); return; }
       sum.classList.add('off');
       const d = days[si];
-      tip.innerHTML = `<span class="tl">${METRICS[M]}</span><span class="tv">${tipVal(d.v)}</span><span class="td">${bucketName(chartUnit, d)}・${d.n}プレイ</span>`;
+      tip.innerHTML = `<span class="tl">${METRICS[M]}</span><span class="tv">${tipVal(d.v)}</span><span class="td">${tipDate(d)}・${d.n}プレイ</span>`;
       tip.hidden = line.hidden = false;
       const card = $('secChart').getBoundingClientRect(), svg = $('chart').getBoundingClientRect(), sc = svg.width / W;
       const bx = svg.left - card.left + (L + step * si + step / 2) * sc;
@@ -1557,7 +1564,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     let l = bucketEnd(chartUnit, days[days.length - 1].start); if (l > todayD) l = todayD;
     const period = chartUnit === 'month' ? `${f.getFullYear()}/${f.getMonth() + 1}〜${l.getFullYear()}/${l.getMonth() + 1}`
       : chartUnit === 'year' ? `${f.getFullYear()}〜${l.getFullYear()}年`
-      : (f.getFullYear() !== l.getFullYear() ? `${f.getFullYear()}/` : '') + `${md(f)}〜${md(l)}`;
+      : `${f.getFullYear()}/${md(f)}〜` + (f.getFullYear() !== l.getFullYear() ? `${l.getFullYear()}/` : '') + md(l);
     $('chartPeriod').textContent = period + (chartOff === 0 ? '（今まで）' : '');
     $('chartNext').disabled = chartOff === 0;
     $('chartPrev').disabled = chartOff >= chartMaxOff();
