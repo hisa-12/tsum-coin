@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.12', date: '2026/11/06 14:00' };
+window.APP_VERSION = { no: '2.13', date: '2026/11/06 14:07' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -465,6 +465,10 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
 .csv-note b{color:var(--danger)}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .cal-sel{font-size:14px;padding:6px 10px}
+.set-toggle{margin-bottom:0}
+.set-toggle[aria-expanded="true"]{margin-bottom:10px}
+#tabSet{gap:12px}
+#tabSet > #updateSec{margin-top:10px}
 .update-box{display:flex;flex-direction:column;align-items:center;gap:8px}
 .update-box .msg{margin:0;text-align:center}
 .app-version{margin:0;text-align:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -1732,7 +1736,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       }
     }
   }
-  const toGoalSettings = () => { showTab('set'); showGoalForm(); const t = $('goalSec'); if (t) t.scrollIntoView({block:'start'}); };
+  const toGoalSettings = () => { showTab('set'); showGoalForm(); if (window.__openSetting) window.__openSetting('goalSec'); const t = $('goalSec'); if (t) t.scrollIntoView({block:'start'}); };
   $('goalEdit').addEventListener('click', toGoalSettings);
   $('goalSetup').addEventListener('click', toGoalSettings);
   $('goalForm').addEventListener('submit', e => {
@@ -2320,6 +2324,26 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     });
     mq.addEventListener ? mq.addEventListener('change', () => wrap.classList.remove('head-off')) : null;
   })();
+  /* ---- settings tab: every section starts folded; tap its title to open ---- */
+  (() => {
+    const ids = ['themeSec','goalSec','prefSec','priceSec','charaSec','syncSec','backupSec','dangerSec'];
+    const folds = {};
+    for (const id of ids){
+      const sec = $(id); if (!sec) continue;
+      const h = sec.querySelector(':scope > h2'); if (!h) continue;
+      const body = document.createElement('div'); body.className = 'fold-body'; body.id = id + 'Body'; body.hidden = true;
+      while (h.nextSibling) body.appendChild(h.nextSibling);
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'hist-toggle set-toggle'; btn.setAttribute('aria-expanded', 'false'); btn.setAttribute('aria-controls', body.id);
+      btn.innerHTML = `<span class="chev" aria-hidden="true">▸</span><span>${h.textContent}</span>`;
+      h.replaceWith(btn); sec.appendChild(body);
+      const set = open => { body.hidden = !open; btn.setAttribute('aria-expanded', open ? 'true' : 'false'); };
+      btn.addEventListener('click', () => set(body.hidden));
+      folds[id] = set;
+    }
+    window.__openSetting = id => { if (folds[id]) folds[id](true); };
+  })();
+
   /* ---- tabs ---- */
   const wideMQ = window.matchMedia('(min-width:1100px)');
   let curTab = 'rec';
