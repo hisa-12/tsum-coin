@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.14', date: '2026/11/06 14:11' };
+window.APP_VERSION = { no: '2.15', date: '2026/11/06 14:18' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -661,6 +661,17 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
           <button type="button" data-u="month" aria-pressed="false">月</button>
           <button type="button" data-u="year" aria-pressed="false">年</button>
         </div>
+      </div>
+      <div class="chart-sub">
+        <label for="chartMetric">グラフにする値</label>
+        <select id="chartMetric" class="pref-sel cal-sel">
+          <option value="net">純利益</option>
+          <option value="earn">獲得</option>
+          <option value="count">プレイ回数</option>
+          <option value="mult">平均倍率</option>
+          <option value="avgnet">1プレイ平均純利益</option>
+          <option value="dur">プレイ時間</option>
+        </select>
       </div>
       <div class="chart-sub" id="chartRangeRow">
         <span>表示する日数</span>
@@ -1394,6 +1405,9 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   const LS_RANGE = 'tsum-coin-chart-range', LS_UNIT = 'tsum-coin-chart-unit';
   let chartRange = [7,14,30].includes(+lsGet(LS_RANGE)) ? +lsGet(LS_RANGE) : 14;
   let chartUnit = ['day','week','month','year'].includes(lsGet(LS_UNIT)) ? lsGet(LS_UNIT) : 'day';
+  const LS_METRIC = 'tsum-coin-chart-metric';
+  const METRICS = {net:'純利益', earn:'獲得', count:'プレイ回数', mult:'平均倍率', avgnet:'1プレイ平均純利益', dur:'プレイ時間'};
+  let chartMetric = METRICS[lsGet(LS_METRIC)] ? lsGet(LS_METRIC) : 'net';
   let chartSel = '';
   let chartOff = 0;   // buckets between the current one and the right edge
   const UNIT = {
@@ -1446,39 +1460,62 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     document.querySelectorAll('#chartUnit button').forEach(b => b.setAttribute('aria-pressed', b.dataset.u === chartUnit ? 'true' : 'false'));
     document.querySelectorAll('#chartRange button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.r === chartRange ? 'true' : 'false'));
     $('chartRangeRow').hidden = chartUnit !== 'day';
-    $('chartTitle').textContent = `${U.name}ごとの純利益`;
+    $('chartMetric').value = chartMetric;
+    const M = chartMetric, isRatio = M === 'mult' || M === 'avgnet', canNeg = M === 'net' || M === 'avgnet';
+    $('chartTitle').textContent = `${U.name}ごとの${METRICS[M]}`;
+    // totals per bucket, then the chosen value
     const per = new Map();
-    for (const x of chartPlays){ const k = bucketKey(chartUnit, x.day); const d = per.get(k) || {net:0, n:0}; d.net += x.result - costOf(x); d.n++; per.set(k, d); }
+    for (const x of chartPlays){
+      const k = bucketKey(chartUnit, x.day), d = per.get(k) || {n:0, earn:0, cost:0, play:0, dur:0};
+      d.n++; d.earn += x.result; d.cost += costOf(x); d.play += x.play; if (hasDur(x)) d.dur += x.dur; per.set(k, d);
+    }
+    const valueOf = a => !a || !a.n ? null
+      : M === 'earn' ? a.earn : M === 'net' ? a.earn - a.cost : M === 'count' ? a.n
+      : M === 'mult' ? (a.play ? a.earn / a.play : null) : M === 'avgnet' ? (a.earn - a.cost) / a.n : (a.dur || null);
+    const fmtAxis = v => M === 'count' ? fmt(v) : M === 'mult' ? '×' + v.toFixed(1) : M === 'dur' ? (v < 3600 ? `${Math.round(v / 60)}分` : `${+(v / 3600).toFixed(1)}時間`) : compact(v);
+    const fmtFull = v => v == null ? '—' : M === 'count' ? `${Number.isInteger(v) ? fmt(v) : v.toFixed(1)}回` : M === 'mult' ? '×' + v.toFixed(2) : M === 'dur' ? hm(v) : sfmt(v);
     const days = [];
     for (let i = count - 1; i >= 0; i--){
-      const back = chartOff + i, start = bucketStart(chartUnit, back), k = startKey(chartUnit, start);
-      days.push({k, start, back, ...(per.get(k) || {net:0, n:0})});
+      const back = chartOff + i, start = bucketStart(chartUnit, back), k = startKey(chartUnit, start), a = per.get(k);
+      const v = valueOf(a);
+      days.push({k, start, back, a, v, n: a ? a.n : 0});
     }
     // phone: fixed 360-wide drawing scaled to fit; wider screens: draw at real width so text stays small
-    const W = Math.max(360, Math.round($('chart').parentNode.clientWidth || 0)), H = W > 360 ? 200 : 180, L = 40, R = 6, T = 10, B = 22, cw = W - L - R, ch = H - T - B;
+    const W = Math.max(360, Math.round($('chart').parentNode.clientWidth || 0)), H = W > 360 ? 200 : 180, L = 46, R = 6, T = 10, B = 22, cw = W - L - R, ch = H - T - B;
     $('chart').setAttribute('viewBox', `0 0 ${W} ${H}`);
-    const hi = niceMax(Math.max(0, ...days.map(d => d.net))), negMax = Math.max(0, ...days.map(d => -d.net));
-    const lo = negMax > 0 ? -Math.max(niceMax(negMax), niceMax(hi * 0.2)) : 0;
-    const top = hi || (lo ? 0 : 1), span = (top - lo) || 1;
+    const vals = days.map(d => d.v).filter(v => v != null);
+    let top, lo, base = 0;
+    if (M === 'mult'){
+      // multipliers sit around ×1.2–1.5: start the bars at a floor just under the smallest value
+      const mn = vals.length ? Math.min(...vals) : 1, mx = vals.length ? Math.max(...vals) : 1.5;
+      lo = base = Math.max(0, Math.floor((mn - 0.05) * 10) / 10); top = Math.ceil((mx + 0.02) * 10) / 10; if (top <= lo) top = lo + 0.5;
+    } else {
+      const hi = niceMax(Math.max(0, ...vals)), negMax = Math.max(0, ...vals.map(v => -v));
+      lo = negMax > 0 ? -Math.max(niceMax(negMax), niceMax(hi * 0.2)) : 0;
+      top = hi || (lo ? 0 : 1);
+    }
+    const span = (top - lo) || 1;
     const y = v => T + (top - v) / span * ch;
     const step = cw / days.length, bw = Math.max(2, step * 0.62);
     let g = '';
-    const ticks = (!hi && !lo) ? [0] : lo < 0 ? [top, 0, lo] : [top, top / 2, 0];
-    for (const t of ticks){ g += `<line class="${t === 0 ? 'zero' : 'grid'}" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${L - 5}" y="${y(t) + 3}" text-anchor="end">${t === 0 ? '0' : compact(t)}</text>`; }
+    const ticks = M === 'mult' ? [top, (top + lo) / 2, lo] : (!vals.length || (top === 1 && lo === 0 && !vals.some(v => v))) ? [0] : lo < 0 ? [top, 0, lo] : [top, top / 2, 0];
+    for (const tk of ticks){ g += `<line class="${tk === base ? 'zero' : 'grid'}" x1="${L}" x2="${W - R}" y1="${y(tk)}" y2="${y(tk)}"/><text x="${L - 5}" y="${y(tk) + 3}" text-anchor="end">${tk === 0 && M !== 'mult' ? '0' : fmtAxis(tk)}</text>`; }
     const labelEvery = chartUnit !== 'day' ? 1 : chartRange <= 7 ? 1 : chartRange <= 14 ? 2 : 5;
     days.forEach((d, i) => {
       const cx = L + step * i + step / 2;
-      if (d.n){
-        const y0 = y(0), y1 = y(d.net), h = Math.max(1.5, Math.abs(y1 - y0));
-        const cls = ['cbar', d.net < 0 ? 'neg' : '', d.back === 0 ? 'today' : '', d.k === chartSel ? 'sel' : ''].filter(Boolean).join(' ');
-        g += `<rect class="${cls}" x="${cx - bw / 2}" y="${d.net < 0 ? y0 : y0 - h}" width="${bw}" height="${h}" rx="${Math.min(3, bw / 3)}"/>`;
+      if (d.v != null){
+        const y0 = y(base), y1 = y(d.v), h = Math.max(1.5, Math.abs(y1 - y0));
+        const cls = ['cbar', canNeg && d.v < 0 ? 'neg' : '', d.back === 0 ? 'today' : '', d.k === chartSel ? 'sel' : ''].filter(Boolean).join(' ');
+        g += `<rect class="${cls}" x="${cx - bw / 2}" y="${d.v < base ? y0 : y0 - h}" width="${bw}" height="${h}" rx="${Math.min(3, bw / 3)}"/>`;
       }
       g += `<rect class="hit" data-k="${d.k}" x="${cx - step / 2}" y="${T}" width="${step}" height="${ch + B}"/>`;
       if ((count - 1 - i) % labelEvery === 0) g += `<text x="${cx}" y="${H - 6}" text-anchor="middle">${bucketLabel(chartUnit, d, i, count)}</text>`;
     });
-    const played = days.filter(d => d.n), total = played.reduce((s, d) => s + d.net, 0);
-    if (played.length){ const avg = total / played.length; g += `<line class="avg" x1="${L}" x2="${W - R}" y1="${y(avg)}" y2="${y(avg)}"/>`; }
+    const played = days.filter(d => d.v != null);
+    const avg = played.length ? played.reduce((s2, d) => s2 + d.v, 0) / played.length : null;
+    if (avg != null) g += `<line class="avg" x1="${L}" x2="${W - R}" y1="${y(avg)}" y2="${y(avg)}"/>`;
     $('chart').innerHTML = g;
+    $('chart').setAttribute('aria-label', `${U.name}ごとの${METRICS[M]}の棒グラフ`);
     const f = days[0].start, todayD = bucketStart('day', 0);
     let l = bucketEnd(chartUnit, days[days.length - 1].start); if (l > todayD) l = todayD;
     const period = chartUnit === 'month' ? `${f.getFullYear()}/${f.getMonth() + 1}〜${l.getFullYear()}/${l.getMonth() + 1}`
@@ -1490,10 +1527,14 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     $('chartToday').hidden = chartOff === 0;
     const sel = days.find(d => d.k === chartSel);
     const nm = chartUnit === 'day' ? `${count}日間` : `${count}${chartUnit === 'week' ? '週' : chartUnit === 'month' ? 'か月' : '年'}間`;
+    const unitN = chartUnit === 'month' ? 'か月' : U.name;
+    // whole-period value: a sum for totals, the overall average for ratios
+    const all = {n:0, earn:0, cost:0, play:0, dur:0}; played.forEach(d => { for (const k2 in all) all[k2] += d.a[k2]; });
     $('chartFoot').innerHTML = sel
-      ? `<span><b>${bucketName(chartUnit, sel)}</b></span><span>${sel.n ? `純利益 <b>${sfmt(sel.net)}</b>・${sel.n}プレイ` : '記録なし'}</span>`
+      ? `<span><b>${bucketName(chartUnit, sel)}</b></span><span>${sel.n ? `${METRICS[M]} <b>${fmtFull(sel.v)}</b>・${sel.n}プレイ` : '記録なし'}</span>`
       : played.length
-        ? `<span>${nm}の合計 <b>${sfmt(total)}</b></span><span>点線＝プレイした${U.name}の平均 <b>${sfmt(total / played.length)}</b>（${played.length}${chartUnit === 'month' ? 'か月' : U.name}）</span>`
+        ? (isRatio ? `<span>${nm}全体の${METRICS[M]} <b>${fmtFull(valueOf(all))}</b></span>` : `<span>${nm}の合計 <b>${fmtFull(valueOf(all))}</b></span>`)
+          + `<span>点線＝プレイした${unitN}の平均 <b>${fmtFull(avg)}</b>（${played.length}${unitN}）</span>`
         : `<span>この${nm}の記録はありません</span>`;
   }
   function chartMaxOff(){
@@ -1534,6 +1575,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   })();
   $('chartRange').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; chartRange = +b.dataset.r; lsSet(LS_RANGE, String(chartRange)); chartSel = ''; chartOff = Math.min(chartOff, chartMaxOff()); renderChart(); });
   $('chartUnit').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; chartUnit = b.dataset.u; lsSet(LS_UNIT, chartUnit); chartSel = ''; chartOff = 0; renderChart(); });
+  $('chartMetric').addEventListener('change', e => { chartMetric = e.target.value; lsSet(LS_METRIC, chartMetric); chartSel = ''; renderChart(); });
   $('chart').addEventListener('click', e => { const r = e.target.closest('.hit'); if (!r) return; chartSel = chartSel === r.dataset.k ? '' : r.dataset.k; renderChart(); });
 
   function renderDays(){
