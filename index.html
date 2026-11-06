@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.15', date: '2026/11/06 14:18' };
+window.APP_VERSION = { no: '2.16', date: '2026/11/06 14:28' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -349,6 +349,11 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 .chart-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 12px 10px;margin-top:10px;display:flex;flex-direction:column;gap:6px}
 .chart-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .chart-head .k{font-size:12px;font-weight:700;color:var(--muted)}
+.chart-title{display:flex;align-items:center;gap:4px;min-width:0}
+.chart-pick{position:relative;display:inline-flex;align-items:center;gap:5px;font-size:14px;font-weight:700;color:var(--ink);padding:5px 9px;border-radius:9px;border:1.5px solid var(--line);background:var(--bg);white-space:nowrap}
+.chart-pick svg{width:10px;height:6px;fill:none;stroke:var(--muted);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.chart-pick select{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px;cursor:pointer;-webkit-appearance:none;appearance:none}
+.chart-pick:focus-within{outline:2px solid var(--teal);outline-offset:1px}
 .chart-wrap{width:100%}
 #chart{display:block;width:100%;height:auto;overflow:visible;touch-action:pan-y;user-select:none;-webkit-user-select:none}
 .chart-sub[hidden]{display:none}
@@ -654,24 +659,20 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     </div>
     <div class="chart-card" id="secChart">
       <div class="chart-head">
-        <span class="k" id="chartTitle">日ごとの純利益</span>
-        <div class="seg" id="chartUnit" role="group" aria-label="単位">
-          <button type="button" data-u="day" aria-pressed="true">日</button>
-          <button type="button" data-u="week" aria-pressed="false">週</button>
-          <button type="button" data-u="month" aria-pressed="false">月</button>
-          <button type="button" data-u="year" aria-pressed="false">年</button>
-        </div>
-      </div>
-      <div class="chart-sub">
-        <label for="chartMetric">グラフにする値</label>
-        <select id="chartMetric" class="pref-sel cal-sel">
+        <span class="k chart-title"><span id="chartTitle">日ごとの</span><span class="chart-pick"><span id="chartMetricLbl">純利益</span><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg><select id="chartMetric" aria-label="グラフにする値">
           <option value="net">純利益</option>
           <option value="earn">獲得</option>
           <option value="count">プレイ回数</option>
           <option value="mult">平均倍率</option>
           <option value="avgnet">1プレイ平均純利益</option>
           <option value="dur">プレイ時間</option>
-        </select>
+        </select></span></span>
+        <div class="seg" id="chartUnit" role="group" aria-label="単位">
+          <button type="button" data-u="day" aria-pressed="true">日</button>
+          <button type="button" data-u="week" aria-pressed="false">週</button>
+          <button type="button" data-u="month" aria-pressed="false">月</button>
+          <button type="button" data-u="year" aria-pressed="false">年</button>
+        </div>
       </div>
       <div class="chart-sub" id="chartRangeRow">
         <span>表示する日数</span>
@@ -1460,9 +1461,9 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     document.querySelectorAll('#chartUnit button').forEach(b => b.setAttribute('aria-pressed', b.dataset.u === chartUnit ? 'true' : 'false'));
     document.querySelectorAll('#chartRange button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.r === chartRange ? 'true' : 'false'));
     $('chartRangeRow').hidden = chartUnit !== 'day';
-    $('chartMetric').value = chartMetric;
+    $('chartMetric').value = chartMetric; $('chartMetricLbl').textContent = METRICS[chartMetric];
     const M = chartMetric, isRatio = M === 'mult' || M === 'avgnet', canNeg = M === 'net' || M === 'avgnet';
-    $('chartTitle').textContent = `${U.name}ごとの${METRICS[M]}`;
+    $('chartTitle').textContent = `${U.name}ごとの`;
     // totals per bucket, then the chosen value
     const per = new Map();
     for (const x of chartPlays){
