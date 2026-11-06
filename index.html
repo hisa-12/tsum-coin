@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.17', date: '2026/11/06 14:38' };
+window.APP_VERSION = { no: '2.18', date: '2026/11/06 14:43' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -371,6 +371,7 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
 #chart .cbar.sel{stroke:var(--ink);stroke-width:1.5}
 #chart .hit{fill:transparent;cursor:pointer}
 #chart text{fill:var(--muted);font-size:10px;font-family:var(--font-body);font-variant-numeric:tabular-nums}
+#chart .vtag{pointer-events:none}
 #chart .vtag rect{fill:var(--ink)}
 #chart .vtag text{fill:var(--bg);font-size:11px;font-weight:700}
 #chart text.avgl{fill:var(--coin-deep);font-weight:700}
@@ -1412,6 +1413,7 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   const METRICS = {net:'純利益', earn:'獲得', count:'プレイ回数', mult:'平均倍率', avgnet:'1プレイ平均純利益', dur:'プレイ時間'};
   let chartMetric = METRICS[lsGet(LS_METRIC)] ? lsGet(LS_METRIC) : 'net';
   let chartSel = '';
+  let chartTag = () => {};
   let chartOff = 0;   // buckets between the current one and the right edge
   const UNIT = {
     day:   {name: '日', count: () => chartRange},
@@ -1519,7 +1521,9 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
     if (avg != null) g += `<line class="avg" x1="${L}" x2="${W - R}" y1="${y(avg)}" y2="${y(avg)}"/>`;
     $('chart').innerHTML = g;
     // value tag over the tapped bar
-    const si = days.findIndex(d => d.k === chartSel && d.v != null);
+    chartTag = k => {
+    const old = $('chart').querySelector('.vtag'); if (old) old.remove();
+    const si = days.findIndex(d => d.k === k && d.v != null);
     if (si >= 0){
       const d = days[si], cx = L + step * si + step / 2, NS = 'http://www.w3.org/2000/svg';
       const tag = document.createElementNS(NS, 'g'); tag.setAttribute('class', 'vtag');
@@ -1533,6 +1537,8 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
       r.setAttribute('x', x - pw / 2); r.setAttribute('y', ty); r.setAttribute('width', pw); r.setAttribute('height', ph); r.setAttribute('rx', 6);
       t.setAttribute('x', x); t.setAttribute('y', ty + 12.5);
     }
+    };
+    chartTag(chartSel);
     $('chart').setAttribute('aria-label', `${U.name}ごとの${METRICS[M]}の棒グラフ`);
     const f = days[0].start, todayD = bucketStart('day', 0);
     let l = bucketEnd(chartUnit, days[days.length - 1].start); if (l > todayD) l = todayD;
@@ -1594,6 +1600,12 @@ html.gate-open,html.gate-open body{overflow:hidden !important}
   $('chartRange').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; chartRange = +b.dataset.r; lsSet(LS_RANGE, String(chartRange)); chartSel = ''; chartOff = Math.min(chartOff, chartMaxOff()); renderChart(); });
   $('chartUnit').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; chartUnit = b.dataset.u; lsSet(LS_UNIT, chartUnit); chartSel = ''; chartOff = 0; renderChart(); });
   $('chartMetric').addEventListener('change', e => { chartMetric = e.target.value; lsSet(LS_METRIC, chartMetric); chartSel = ''; renderChart(); });
+  // mouse/trackpad: show the value while hovering, back to the tapped bar when leaving
+  $('chart').addEventListener('pointerover', e => {
+    if (e.pointerType !== 'mouse') return;
+    const h = e.target.closest('.hit'); if (h) chartTag(h.dataset.k);
+  });
+  $('chart').addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') chartTag(chartSel); });
   $('chart').addEventListener('click', e => { const r = e.target.closest('.hit'); if (!r) return; chartSel = chartSel === r.dataset.k ? '' : r.dataset.k; renderChart(); });
 
   function renderDays(){
