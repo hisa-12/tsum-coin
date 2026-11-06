@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.30', date: '2026/11/06 16:20' };
+window.APP_VERSION = { no: '2.31', date: '2026/11/06 16:32' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -471,6 +471,7 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
 /* iPhone AutoFill paints filled fields yellow; keep the app's own colors */
 .sync-form input:-webkit-autofill,.sync-form input:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 100px var(--bg) inset;box-shadow:0 0 0 100px var(--bg) inset;-webkit-text-fill-color:var(--ink);caret-color:var(--ink);transition:background-color 9999s}
 #gateSlot #syncMsg{margin:0}
+.gate-ver{margin:4px 0 0;text-align:center;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .gate-check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--muted)}
 .gate-check input{width:18px;height:18px;accent-color:var(--teal)}
 /* login screen is a normal page (not an overlay) so iPhone AutoFill treats it like the settings form */
@@ -996,6 +997,7 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
     <button class="btn gate-skip" id="gateSkip" type="button">ログインせずに使う</button>
     <p class="msg gate-note">記録はこの端末だけに保存されます。あとから設定タブの「同期」でログインすれば、この端末の記録も同期されます。</p>
     <label class="gate-check"><input type="checkbox" id="gateNoShow"> 次から、ログインしていなくてもこの画面を出さない</label>
+    <p class="gate-ver" id="gateVersion"></p>
   </div>
 </div>
 
@@ -2484,7 +2486,7 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
   applyTheme(lsGet(LS_THEME) || 'auto');
   showTab(settings.startTab || 'rec');
 
-  { const v = window.APP_VERSION || {}; $('appVersion').textContent = `ツムツム コイン帳　バージョン ${v.no || '?'}（${v.date || ''}）`; }
+  { const v = window.APP_VERSION || {}; $('appVersion').textContent = `ツムツム コイン帳　バージョン ${v.no || '?'}（${v.date || ''}）`; $('gateVersion').textContent = `バージョン ${v.no || '?'}（${v.date || ''}）`; }
   // force a fresh copy of the app (home-screen apps can keep an old one even after closing)
   $('forceReload').addEventListener('click', async () => {
     const btn = $('forceReload'), m = $('reloadMsg'), cur = (window.APP_VERSION || {}).no || '?';
