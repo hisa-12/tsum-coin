@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.37', date: '2026/11/13 09:12' };
+window.APP_VERSION = { no: '2.38', date: '2026/11/13 13:27' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -2559,6 +2559,27 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
     let kbT = 0;
     document.addEventListener('focusin', e => { if (typing(e.target)){ clearTimeout(kbT); document.documentElement.classList.add('kb-open'); } });
     document.addEventListener('focusout', () => { clearTimeout(kbT); kbT = setTimeout(() => { if (!typing(document.activeElement)) document.documentElement.classList.remove('kb-open'); }, 120); });
+  }
+  // tapping a coin field: once the keyboard is up, scroll so the 記録する button is on screen too
+  {
+    const showSave = field => {
+      const vv = window.visualViewport, btn = $('save');
+      const visTop = vv ? vv.offsetTop : 0, visBot = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      const b = btn.getBoundingClientRect(), f = field.getBoundingClientRect();
+      let dy = b.bottom + 12 - visBot;                         // how far the button sits below the visible area
+      if (dy <= 0) return;
+      dy = Math.min(dy, f.top - visTop - 8);                   // never push the field itself off the top
+      if (dy <= 0) return;
+      let sc = btn.parentElement;                              // wide layout scrolls inside a column, phones scroll the page
+      while (sc && sc !== document.body && !(sc.scrollHeight > sc.clientHeight && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
+      if (sc && sc !== document.body) sc.scrollBy({top: dy, behavior: 'smooth'}); else window.scrollBy({top: dy, behavior: 'smooth'});
+    };
+    for (const id of ['play', 'res']) $(id).addEventListener('focus', e => {
+      const field = e.target, vv = window.visualViewport;
+      let done = false; const go = () => { if (done) return; done = true; if (vv) vv.removeEventListener('resize', go); setTimeout(() => showSave(field), 60); };
+      if (vv) vv.addEventListener('resize', go);
+      setTimeout(go, 450);                                     // keyboard already open (moving between fields) or no resize event
+    });
   }
   const tabScroll = {};
   let tabReady = false;
