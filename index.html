@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.38', date: '2026/11/13 13:27' };
+window.APP_VERSION = { no: '2.39', date: '2026/11/13 13:49' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -405,6 +405,7 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
   background:color-mix(in srgb,var(--surface) 88%,transparent);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);
   border-top:1px solid var(--line)}
 /* while typing (keyboard up) the tab bar steps aside so it doesn't sit on top of the fields */
+html.kb-open body{padding-bottom:60vh}
 html.kb-open .tabbar{opacity:0;visibility:hidden;pointer-events:none;transform:translateY(20px);transition:opacity .15s,transform .15s,visibility 0s .15s}
 .tabbar button{border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;font-size:11px;font-weight:700;border-radius:12px}
 .tabbar svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -2568,17 +2569,24 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
       const b = btn.getBoundingClientRect(), f = field.getBoundingClientRect();
       let dy = b.bottom + 12 - visBot;                         // how far the button sits below the visible area
       if (dy <= 0) return;
-      dy = Math.min(dy, f.top - visTop - 8);                   // never push the field itself off the top
+      dy = Math.min(dy, f.top - visTop - 4);                   // never push the field itself off the top (its title may go)
       if (dy <= 0) return;
       let sc = btn.parentElement;                              // wide layout scrolls inside a column, phones scroll the page
       while (sc && sc !== document.body && !(sc.scrollHeight > sc.clientHeight && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
-      if (sc && sc !== document.body) sc.scrollBy({top: dy, behavior: 'smooth'}); else window.scrollBy({top: dy, behavior: 'smooth'});
+      // one quick move after iPhone has finished its own scrolling, so the two don't fight
+      if (sc && sc !== document.body) sc.scrollBy(0, dy); else window.scrollBy(0, dy);
     };
     for (const id of ['play', 'res']) $(id).addEventListener('focus', e => {
       const field = e.target, vv = window.visualViewport;
-      let done = false; const go = () => { if (done) return; done = true; if (vv) vv.removeEventListener('resize', go); setTimeout(() => showSave(field), 60); };
-      if (vv) vv.addEventListener('resize', go);
-      setTimeout(go, 450);                                     // keyboard already open (moving between fields) or no resize event
+      // wait until the keyboard and iPhone's own scrolling have stopped moving (no change for 180ms, at most 1.2s)
+      let quiet = 0, done = false;
+      const off = () => { if (vv){ vv.removeEventListener('resize', bump); vv.removeEventListener('scroll', bump); } window.removeEventListener('scroll', bump); };
+      const fire = () => { if (done) return; done = true; clearTimeout(quiet); clearTimeout(cap); off(); if (document.activeElement === field) showSave(field); };
+      const bump = () => { clearTimeout(quiet); quiet = setTimeout(fire, 180); };
+      if (vv){ vv.addEventListener('resize', bump); vv.addEventListener('scroll', bump); }
+      window.addEventListener('scroll', bump, {passive: true});
+      bump();
+      const cap = setTimeout(fire, 1200);
     });
   }
   const tabScroll = {};
