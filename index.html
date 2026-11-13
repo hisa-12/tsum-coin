@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.43', date: '2026/11/13 14:36' };
+window.APP_VERSION = { no: '2.44', date: '2026/11/13 14:43' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -405,7 +405,6 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
   background:color-mix(in srgb,var(--surface) 88%,transparent);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);
   border-top:1px solid var(--line)}
 /* while typing (keyboard up) the tab bar steps aside so it doesn't sit on top of the fields */
-html.kb-open body{padding-bottom:60vh !important}
 html.kb-open .tabbar{opacity:0;visibility:hidden;pointer-events:none;transform:translateY(20px);transition:opacity .15s,transform .15s,visibility 0s .15s}
 .tabbar button{border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;font-size:11px;font-weight:700;border-radius:12px}
 .tabbar svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
