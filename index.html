@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.41', date: '2026/11/13 14:02' };
+window.APP_VERSION = { no: '2.43', date: '2026/11/13 14:36' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -405,7 +405,7 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
   background:color-mix(in srgb,var(--surface) 88%,transparent);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);
   border-top:1px solid var(--line)}
 /* while typing (keyboard up) the tab bar steps aside so it doesn't sit on top of the fields */
-html.kb-open body{padding-bottom:60vh}
+html.kb-open body{padding-bottom:60vh !important}
 html.kb-open .tabbar{opacity:0;visibility:hidden;pointer-events:none;transform:translateY(20px);transition:opacity .15s,transform .15s,visibility 0s .15s}
 .tabbar button{border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;font-size:11px;font-weight:700;border-radius:12px}
 .tabbar svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -2561,39 +2561,25 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
     document.addEventListener('focusin', e => { if (typing(e.target)){ clearTimeout(kbT); document.documentElement.classList.add('kb-open'); } });
     document.addEventListener('focusout', () => { clearTimeout(kbT); kbT = setTimeout(() => { if (!typing(document.activeElement)) document.documentElement.classList.remove('kb-open'); }, 120); });
   }
-  // tapping a coin field: scroll so the 記録する button sits just above the keyboard.
-  // The keyboard's height is remembered from the last time, so the move happens right away
-  // (before iPhone starts its own scrolling) and is only fine-tuned once the keyboard is up.
+  // tapping a coin field: once the keyboard is up, scroll so the 記録する button is on screen too (same as v2.38)
   {
-    const LS_KB = 'tsum-coin-kb-h';
-    const scroller = el => { let sc = el.parentElement; while (sc && sc !== document.body && !(sc.scrollHeight > sc.clientHeight && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement; return sc && sc !== document.body ? sc : null; };
-    const moveBy = (el, dy) => { if (Math.abs(dy) < 2) return; const sc = scroller(el); if (sc) sc.scrollTop += dy; else window.scrollTo(0, window.scrollY + dy); };
-    // move so the button's bottom lands at `bottom`, without pushing the field off the top
-    const align = (field, top, bottom) => {
-      const b = $('save').getBoundingClientRect(), f = field.getBoundingClientRect();
-      let dy = b.bottom + 10 - bottom;
-      dy = Math.min(dy, f.top - top - 4);
-      moveBy(field, dy);
+    const showSave = field => {
+      const vv = window.visualViewport, btn = $('save');
+      const visTop = vv ? vv.offsetTop : 0, visBot = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      const b = btn.getBoundingClientRect(), f = field.getBoundingClientRect();
+      let dy = b.bottom + 12 - visBot;                         // how far the button sits below the visible area
+      if (dy <= 0) return;
+      dy = Math.min(dy, f.top - visTop - 8);                   // never push the field itself off the top
+      if (dy <= 0) return;
+      let sc = btn.parentElement;                              // wide layout scrolls inside a column, phones scroll the page
+      while (sc && sc !== document.body && !(sc.scrollHeight > sc.clientHeight && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
+      if (sc && sc !== document.body) sc.scrollBy({top: dy, behavior: 'smooth'}); else window.scrollBy({top: dy, behavior: 'smooth'});
     };
-    let busy = 0;
     for (const id of ['play', 'res']) $(id).addEventListener('focus', e => {
       const field = e.target, vv = window.visualViewport;
-      if (wideMQ.matches || !vv) return;                              // PC / wide iPad: nothing to do
-      const kbOpen = window.innerHeight - vv.height > 120;            // moving between the two fields: keyboard already up
-      const guess = +(lsGet(LS_KB) || 0);
-      if (!kbOpen && guess > 120) requestAnimationFrame(() => align(field, 0, window.innerHeight - guess));
-      clearTimeout(busy);
-      const settle = () => {
-        if (vv) vv.removeEventListener('resize', settle);
-        clearTimeout(busy);
-        busy = setTimeout(() => {
-          if (document.activeElement !== field) return;
-          const kb = window.innerHeight - vv.height;
-          if (kb > 120) lsSet(LS_KB, String(Math.round(kb)));        // remember for next time
-          align(field, vv.offsetTop, vv.offsetTop + vv.height);
-        }, 220);
-      };
-      if (kbOpen) settle(); else { vv.addEventListener('resize', settle); busy = setTimeout(settle, 800); }
+      let done = false; const go = () => { if (done) return; done = true; if (vv) vv.removeEventListener('resize', go); setTimeout(() => showSave(field), 60); };
+      if (vv) vv.addEventListener('resize', go);
+      setTimeout(go, 450);                                     // keyboard already open (moving between fields) or no resize event
     });
   }
   const tabScroll = {};
