@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.40', date: '2026/11/13 13:57' };
+window.APP_VERSION = { no: '2.41', date: '2026/11/13 14:02' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -2561,28 +2561,39 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
     document.addEventListener('focusin', e => { if (typing(e.target)){ clearTimeout(kbT); document.documentElement.classList.add('kb-open'); } });
     document.addEventListener('focusout', () => { clearTimeout(kbT); kbT = setTimeout(() => { if (!typing(document.activeElement)) document.documentElement.classList.remove('kb-open'); }, 120); });
   }
-  // tapping a coin field: put the coin fields at the top of the screen so the 記録する button
-  // fits above the keyboard. Done right away (before the keyboard animates), then checked once more.
+  // tapping a coin field: scroll so the 記録する button sits just above the keyboard.
+  // The keyboard's height is remembered from the last time, so the move happens right away
+  // (before iPhone starts its own scrolling) and is only fine-tuned once the keyboard is up.
   {
+    const LS_KB = 'tsum-coin-kb-h';
     const scroller = el => { let sc = el.parentElement; while (sc && sc !== document.body && !(sc.scrollHeight > sc.clientHeight && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement; return sc && sc !== document.body ? sc : null; };
     const moveBy = (el, dy) => { if (Math.abs(dy) < 2) return; const sc = scroller(el); if (sc) sc.scrollTop += dy; else window.scrollTo(0, window.scrollY + dy); };
-    const visBox = () => { const vv = window.visualViewport; return vv ? {top: vv.offsetTop, bot: vv.offsetTop + vv.height} : {top: 0, bot: window.innerHeight}; };
-    const topOf = field => field.closest('.fields') || field;
-    const placeTop = field => { moveBy(field, topOf(field).getBoundingClientRect().top - visBox().top - 8); };
-    const check = field => {
-      const v = visBox(), b = $('save').getBoundingClientRect(), f = field.getBoundingClientRect();
-      let dy = b.bottom + 10 - v.bot;
-      if (dy > 0) moveBy(field, Math.min(dy, f.top - v.top - 4));      // button still hidden: nudge, but keep the field itself in view
+    // move so the button's bottom lands at `bottom`, without pushing the field off the top
+    const align = (field, top, bottom) => {
+      const b = $('save').getBoundingClientRect(), f = field.getBoundingClientRect();
+      let dy = b.bottom + 10 - bottom;
+      dy = Math.min(dy, f.top - top - 4);
+      moveBy(field, dy);
     };
     let busy = 0;
     for (const id of ['play', 'res']) $(id).addEventListener('focus', e => {
       const field = e.target, vv = window.visualViewport;
-      if (wideMQ.matches) return;                                     // PC / iPad wide layout: no on-screen keyboard issue
-      requestAnimationFrame(() => placeTop(field));
+      if (wideMQ.matches || !vv) return;                              // PC / wide iPad: nothing to do
+      const kbOpen = window.innerHeight - vv.height > 120;            // moving between the two fields: keyboard already up
+      const guess = +(lsGet(LS_KB) || 0);
+      if (!kbOpen && guess > 120) requestAnimationFrame(() => align(field, 0, window.innerHeight - guess));
       clearTimeout(busy);
-      const after = () => { if (vv) vv.removeEventListener('resize', after); clearTimeout(busy); busy = setTimeout(() => { if (document.activeElement === field) check(field); }, 250); };
-      if (vv) vv.addEventListener('resize', after);
-      busy = setTimeout(after, 700);
+      const settle = () => {
+        if (vv) vv.removeEventListener('resize', settle);
+        clearTimeout(busy);
+        busy = setTimeout(() => {
+          if (document.activeElement !== field) return;
+          const kb = window.innerHeight - vv.height;
+          if (kb > 120) lsSet(LS_KB, String(Math.round(kb)));        // remember for next time
+          align(field, vv.offsetTop, vv.offsetTop + vv.height);
+        }, 220);
+      };
+      if (kbOpen) settle(); else { vv.addEventListener('resize', settle); busy = setTimeout(settle, 800); }
     });
   }
   const tabScroll = {};
