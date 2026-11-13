@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.39', date: '2026/11/13 13:49' };
+window.APP_VERSION = { no: '2.40', date: '2026/11/13 13:57' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -2561,32 +2561,28 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
     document.addEventListener('focusin', e => { if (typing(e.target)){ clearTimeout(kbT); document.documentElement.classList.add('kb-open'); } });
     document.addEventListener('focusout', () => { clearTimeout(kbT); kbT = setTimeout(() => { if (!typing(document.activeElement)) document.documentElement.classList.remove('kb-open'); }, 120); });
   }
-  // tapping a coin field: once the keyboard is up, scroll so the 記録する button is on screen too
+  // tapping a coin field: put the coin fields at the top of the screen so the 記録する button
+  // fits above the keyboard. Done right away (before the keyboard animates), then checked once more.
   {
-    const showSave = field => {
-      const vv = window.visualViewport, btn = $('save');
-      const visTop = vv ? vv.offsetTop : 0, visBot = vv ? vv.offsetTop + vv.height : window.innerHeight;
-      const b = btn.getBoundingClientRect(), f = field.getBoundingClientRect();
-      let dy = b.bottom + 12 - visBot;                         // how far the button sits below the visible area
-      if (dy <= 0) return;
-      dy = Math.min(dy, f.top - visTop - 4);                   // never push the field itself off the top (its title may go)
-      if (dy <= 0) return;
-      let sc = btn.parentElement;                              // wide layout scrolls inside a column, phones scroll the page
-      while (sc && sc !== document.body && !(sc.scrollHeight > sc.clientHeight && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
-      // one quick move after iPhone has finished its own scrolling, so the two don't fight
-      if (sc && sc !== document.body) sc.scrollBy(0, dy); else window.scrollBy(0, dy);
+    const scroller = el => { let sc = el.parentElement; while (sc && sc !== document.body && !(sc.scrollHeight > sc.clientHeight && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement; return sc && sc !== document.body ? sc : null; };
+    const moveBy = (el, dy) => { if (Math.abs(dy) < 2) return; const sc = scroller(el); if (sc) sc.scrollTop += dy; else window.scrollTo(0, window.scrollY + dy); };
+    const visBox = () => { const vv = window.visualViewport; return vv ? {top: vv.offsetTop, bot: vv.offsetTop + vv.height} : {top: 0, bot: window.innerHeight}; };
+    const topOf = field => field.closest('.fields') || field;
+    const placeTop = field => { moveBy(field, topOf(field).getBoundingClientRect().top - visBox().top - 8); };
+    const check = field => {
+      const v = visBox(), b = $('save').getBoundingClientRect(), f = field.getBoundingClientRect();
+      let dy = b.bottom + 10 - v.bot;
+      if (dy > 0) moveBy(field, Math.min(dy, f.top - v.top - 4));      // button still hidden: nudge, but keep the field itself in view
     };
+    let busy = 0;
     for (const id of ['play', 'res']) $(id).addEventListener('focus', e => {
       const field = e.target, vv = window.visualViewport;
-      // wait until the keyboard and iPhone's own scrolling have stopped moving (no change for 180ms, at most 1.2s)
-      let quiet = 0, done = false;
-      const off = () => { if (vv){ vv.removeEventListener('resize', bump); vv.removeEventListener('scroll', bump); } window.removeEventListener('scroll', bump); };
-      const fire = () => { if (done) return; done = true; clearTimeout(quiet); clearTimeout(cap); off(); if (document.activeElement === field) showSave(field); };
-      const bump = () => { clearTimeout(quiet); quiet = setTimeout(fire, 180); };
-      if (vv){ vv.addEventListener('resize', bump); vv.addEventListener('scroll', bump); }
-      window.addEventListener('scroll', bump, {passive: true});
-      bump();
-      const cap = setTimeout(fire, 1200);
+      if (wideMQ.matches) return;                                     // PC / iPad wide layout: no on-screen keyboard issue
+      requestAnimationFrame(() => placeTop(field));
+      clearTimeout(busy);
+      const after = () => { if (vv) vv.removeEventListener('resize', after); clearTimeout(busy); busy = setTimeout(() => { if (document.activeElement === field) check(field); }, 250); };
+      if (vv) vv.addEventListener('resize', after);
+      busy = setTimeout(after, 700);
     });
   }
   const tabScroll = {};
