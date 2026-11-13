@@ -26,7 +26,7 @@ img{max-width:100%}
 </style>
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.36', date: '2026/11/06 23:20' };
+window.APP_VERSION = { no: '2.37', date: '2026/11/13 09:12' };
 /* ▼ Firebaseの設定（Firebaseの画面に出る firebaseConfig の中身をここに貼る） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -404,6 +404,8 @@ input.pick{width:20px;height:20px;accent-color:var(--teal);margin:0;vertical-ali
   padding:6px max(10px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
   background:color-mix(in srgb,var(--surface) 88%,transparent);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);
   border-top:1px solid var(--line)}
+/* while typing (keyboard up) the tab bar steps aside so it doesn't sit on top of the fields */
+html.kb-open .tabbar{opacity:0;visibility:hidden;pointer-events:none;transform:translateY(20px);transition:opacity .15s,transform .15s,visibility 0s .15s}
 .tabbar button{border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;font-size:11px;font-weight:700;border-radius:12px}
 .tabbar svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tabbar button[aria-current="page"]{color:var(--teal)}
@@ -2551,6 +2553,13 @@ html.gate-open,html.gate-open body{overflow:auto !important;height:auto !importa
   const wideMQ = window.matchMedia('(min-width:1100px)');
   let curTab = 'rec';
   // each tab remembers where it was scrolled; tapping the tab you are already on goes back to the top
+  // hide the tab bar while a typing field is focused (keyboard open)
+  {
+    const typing = el => el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|range|color|file|date|month|week|time|datetime-local)$/.test(el.type)));
+    let kbT = 0;
+    document.addEventListener('focusin', e => { if (typing(e.target)){ clearTimeout(kbT); document.documentElement.classList.add('kb-open'); } });
+    document.addEventListener('focusout', () => { clearTimeout(kbT); kbT = setTimeout(() => { if (!typing(document.activeElement)) document.documentElement.classList.remove('kb-open'); }, 120); });
+  }
   const tabScroll = {};
   let tabReady = false;
   const scroller = () => wideMQ.matches ? document.querySelector('.col-main') : null;
